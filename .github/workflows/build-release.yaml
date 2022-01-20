@@ -16,4 +16,5 @@ jobs:
         with:
           draft: true
           fail_on_unmatched_files: true
+          body_path: CHANGELOG.md
           files: ./libs/*
