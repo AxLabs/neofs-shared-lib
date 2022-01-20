@@ -10,16 +10,20 @@ Below you can find key functions exported by this shared library:
 
 # Build
 
-Make sure you have [docker](https://docker.com) installed and execute:
+Make sure you have [docker](https://docker.com) installed.
+
+Then, execute:
 
 ```shell
 sh cross.sh
 ```
 
+The output, i.e., `.h` and `.so` files, will be placed in the `./libs` folder.
+
 # Supported Platforms and Archs
 
 | Platform/Arch     | Supported |
-| -------------     | --------- |
+| :-------------    | :---------: |
 | linux/amd64       | ✅ |
 | linux/i386        | ⛔ |
 | linux/arm64       | ✅ |
