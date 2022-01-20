@@ -10,11 +10,14 @@ jobs:
         uses: actions/checkout@v2
       - name: Build
         run: bash cross.sh
+      - name: Prepare CHANGELOG
+        if: startsWith(github.ref, 'refs/tags/')
+        run: VERSION=$GITHUB_REF_NAME bash get-changelog.sh > CHANGELOG.tmp
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           draft: true
           fail_on_unmatched_files: true
-          body_path: CHANGELOG.md
+          body_path: CHANGELOG.tmp
           files: ./libs/*
