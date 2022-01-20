@@ -1,7 +1,10 @@
-# neofs-api-shared-lib
+# NeoFS API Shared Lib
 
 This repo provides a shared library with key functionalities from 
 [neofs-api-go](https://github.com/nspcc-dev/neofs-api-go) for multiple platforms and architectures.
+
+The purpose is to avoid re-implementation of complex and risky functions of NeoFS in other languages, 
+such as Java, Kotlin, Python, Typescript, etc.
 
 Below you can find key functions exported by this shared library:
 
@@ -15,7 +18,7 @@ Make sure you have [docker](https://docker.com) installed.
 Then, execute:
 
 ```shell
-sh cross.sh
+bash cross.sh
 ```
 
 The output, i.e., `.h` and `.so` files, will be placed in the `./libs` folder.
