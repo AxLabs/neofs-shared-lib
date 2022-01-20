@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-docker run -it --rm \
+docker run --rm \
   -v `pwd`:/go/src/github.com/user/go-project \
   -w /go/src/github.com/user/go-project \
   -e CGO_ENABLED=1 \
@@ -20,7 +20,7 @@ docker run -it --rm \
     fi
   }
 
-docker run -it --rm \
+docker run --rm \
   -v `pwd`:/go/src/github.com/user/go-project \
   -w /go/src/github.com/user/go-project \
   -e CGO_ENABLED=1 \
@@ -28,7 +28,7 @@ docker run -it --rm \
   --build-cmd "go build -o ./libs/libneofs-darwin-amd64.so -buildmode=c-shared main.go" \
   -p "darwin/amd64" || { echo 'ERROR: building shared lib failed. Exiting...'; exit 1; }
 
-docker run -it --rm \
+docker run --rm \
   -v `pwd`:/go/src/github.com/user/go-project \
   -w /go/src/github.com/user/go-project \
   -e CGO_ENABLED=1 \
@@ -37,7 +37,7 @@ docker run -it --rm \
   -p "linux/amd64" || { echo 'ERROR: building shared lib failed. Exiting...'; exit 1; }
 
 # TODO: linux/i386 is not working...
-#docker run -it --rm \
+#docker run --rm \
 #  -v `pwd`:/go/src/github.com/user/go-project \
 #  -w /go/src/github.com/user/go-project \
 #  -e CGO_ENABLED=1 \
@@ -45,7 +45,7 @@ docker run -it --rm \
 #  --build-cmd "go build -o ./libs/libneofs-linux-i386.so -buildmode=c-shared main.go" \
 #  -p "linux/i386" || { echo 'ERROR: building shared lib failed. Exiting...'; exit 1; }
 
-docker run -it --rm \
+docker run --rm \
   -v `pwd`:/go/src/github.com/user/go-project \
   -w /go/src/github.com/user/go-project \
   -e CGO_ENABLED=1 \
@@ -53,7 +53,7 @@ docker run -it --rm \
   --build-cmd "go build -o ./libs/libneofs-linux-arm64.so -buildmode=c-shared main.go" \
   -p "linux/arm64" || { echo 'ERROR: building shared lib failed. Exiting...'; exit 1; }
 
-docker run -it --rm \
+docker run --rm \
   -v `pwd`:/go/src/github.com/user/go-project \
   -w /go/src/github.com/user/go-project \
   -e CGO_ENABLED=1 \
@@ -61,7 +61,7 @@ docker run -it --rm \
   --build-cmd "go build -o ./libs/libneofs-windows-amd64.so -buildmode=c-shared main.go" \
   -p "windows/amd64" || { echo 'ERROR: building shared lib failed. Exiting...'; exit 1; }
 
-docker run -it --rm \
+docker run --rm \
   -v `pwd`:/go/src/github.com/user/go-project \
   -w /go/src/github.com/user/go-project \
   -e CGO_ENABLED=1 \
