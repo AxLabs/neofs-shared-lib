@@ -10,6 +10,9 @@ jobs:
         uses: actions/checkout@v2
       - name: Build
         run: bash cross.sh
+      - name: Zip Libs
+        if: startsWith(github.ref, 'refs/tags/')
+        run: zip libneofs-all.zip ./libs/*
       - name: Prepare CHANGELOG
         if: startsWith(github.ref, 'refs/tags/')
         run: VERSION=$GITHUB_REF_NAME bash get-changelog.sh > CHANGELOG.tmp
@@ -20,4 +23,6 @@ jobs:
           draft: true
           fail_on_unmatched_files: true
           body_path: CHANGELOG.tmp
-          files: ./libs/*
+          files: |
+            ./libs/*
+            ./libneofs-all.zip
