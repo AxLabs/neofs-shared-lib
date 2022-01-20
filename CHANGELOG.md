@@ -1,3 +1,8 @@
+# v0.0.4
+
+* Yet another attempt to set text from CHANGELOG.md file to GitHub releases.
+* Not yet productive. 😅
+
 # v0.0.3
 
 * Attempt to release with text from CHANGELOG.md file.
