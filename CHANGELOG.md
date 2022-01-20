@@ -1,3 +1,8 @@
+# v0.0.5
+
+* Add a zip file with all shared lib files. Easier to download.
+* Not yet productive. 😅
+
 # v0.0.4
 
 * Yet another attempt to set text from CHANGELOG.md file to GitHub releases.
