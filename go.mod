@@ -5,6 +5,7 @@ go 1.17
 require (
 	github.com/nspcc-dev/neofs-api-go v1.30.0
 	github.com/nspcc-dev/neofs-crypto v0.3.0
+	google.golang.org/protobuf v1.27.1
 )
 
 require (
@@ -17,5 +18,4 @@ require (
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20210928142010-c7af6a1a74c9 // indirect
 	google.golang.org/grpc v1.41.0 // indirect
-	google.golang.org/protobuf v1.27.1 // indirect
 )
