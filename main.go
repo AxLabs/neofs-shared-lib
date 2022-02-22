@@ -6,12 +6,15 @@ import (
 	"crypto/elliptic"
 	"encoding/hex"
 	"fmt"
+	"github.com/google/uuid"
+	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/message"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
+	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	crypto "github.com/nspcc-dev/neofs-crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -25,7 +28,6 @@ func main() {
 	keyStr := "84180ac9d6eb6fba207ea4ef9d2200102d1ebeb4b9c07e2c6a738a42742e27a5"
 
 	bytes, err := hex.DecodeString(keyStr)
-	print(err)
 
 	k := new(big.Int)
 	k.SetBytes(bytes)
@@ -49,7 +51,7 @@ func main() {
 
 	_ = pr.FromGRPCMessage(m)
 
-	err = v2signature.SignServiceMessage(priv, pr)
+	err = signature.SignServiceMessage(priv, pr)
 	if err != nil {
 		fmt.Errorf(err.Error())
 	}
@@ -100,7 +102,7 @@ func SignServiceMessage(key *C.char, json *C.char) *C.char {
 		panic(err)
 	}
 
-	err = v2signature.SignServiceMessage(priv, pr)
+	err = signature.SignServiceMessage(priv, pr)
 	if err != nil {
 		panic(err)
 	}
@@ -133,50 +135,7 @@ func getPrivKey(key *C.char) *ecdsa.PrivateKey {
 
 //export VerifyServiceMessage
 func VerifyServiceMessage(msg interface{}) error {
-	return v2signature.VerifyServiceMessage(msg)
-}
-
-type (
-	//CallOption func(*callOptions)
-
-	callOptions struct {
-		version *version.Version
-		//xHeaders []*session.XHeader
-		ttl uint32
-		//epoch    uint64
-		//key      *ecdsa.PrivateKey
-		//session  *session.Token
-		//bearer   *token.BearerToken
-	}
-)
-
-func defaultCallOptions() *callOptions {
-	return &callOptions{
-		version: version.Current(),
-		ttl:     2,
-	}
-}
-
-func v2MetaHeaderFromOpts(options *callOptions) *v2session.RequestMetaHeader {
-	meta := new(v2session.RequestMetaHeader)
-	meta.SetVersion(options.version.ToV2())
-	meta.SetTTL(options.ttl)
-	//meta.SetEpoch(options.epoch)
-
-	//xhdrs := make([]*v2session.XHeader, len(options.xHeaders))
-	//for i := range options.xHeaders {
-	//	xhdrs[i] = options.xHeaders[i].ToV2()
-	//}
-
-	//meta.SetXHeaders(xhdrs)
-
-	//if options.bearer != nil {
-	//	meta.SetBearerToken(options.bearer.ToV2())
-	//}
-
-	//meta.SetSessionToken(options.session.ToV2())
-
-	return meta
+	return signature.VerifyServiceMessage(msg)
 }
 
 func die(err error) {
@@ -187,23 +146,64 @@ func die(err error) {
 
 func getContainerFromV2(v2Container *C.char) (*container.Container, error) {
 	sdkContainer := new(container.Container)
-	containerBytes, err := hex.DecodeString(C.GoString(v2Container))
-	if err != nil {
-		return nil, err
-	}
-	err = sdkContainer.Unmarshal(containerBytes)
+	str := C.GoString(v2Container)
+	err := sdkContainer.UnmarshalJSON([]byte(str))
 	if err != nil {
 		return nil, err
 	}
 	return sdkContainer, nil
 }
 
-func NewContainerPutRequest(key *C.char, v2Container *C.char) (*C.char, error) {
+//export GetBalance
+func GetBalance(key *C.char, ownerAddress *C.char) *C.char {
+	privKey := getPrivKey(key)
+	ownerIDString := C.GoString(ownerAddress)
+	println("owner id string:")
+	println(ownerIDString)
+	ownerID := new(refs.OwnerID)
+	ownerID.SetValue([]byte(ownerIDString))
+	println("owner id getvalue:")
+	println(ownerID.GetValue())
+	var body v2accounting.BalanceRequestBody
+	body.SetOwnerID(ownerID)
+
+	var req v2accounting.BalanceRequest
+	req.SetBody(&body)
+	var meta v2session.RequestMetaHeader
+	req.SetMetaHeader(&meta)
+	prepareMetaHeaderBalancePut(&req)
+
+	pr := getBalanceRequestToSigned(&req)
+
+	err := signature.SignServiceMessage(privKey, pr)
+	die(err)
+
+	jsonAfter, err := message.MarshalJSON(pr)
+	die(err)
+
+	cstr := C.CString(string(jsonAfter))
+
+	return cstr
+}
+
+//export NewContainerPutRequest
+func NewContainerPutRequest(key *C.char, v2Container *C.char) *C.char {
 	privKey := getPrivKey(key)
 
 	cnr, err := getContainerFromV2(v2Container)
+	if cnr.Version() == nil {
+		cnr.SetVersion(version.Current())
+	}
+	_, err = cnr.NonceUUID()
 	if err != nil {
-		return nil, err
+		rand, err := uuid.NewRandom()
+		if err != nil {
+			panic("can't create new random " + err.Error())
+		}
+		cnr.SetNonceUUID(rand)
+	}
+	if cnr.BasicACL() == 0 {
+		cnr.SetBasicACL(acl.PrivateBasicRule)
 	}
 
 	// form request body
@@ -211,16 +211,14 @@ func NewContainerPutRequest(key *C.char, v2Container *C.char) (*C.char, error) {
 	reqBody.SetContainer(cnr.ToV2())
 
 	// sign cnr
-	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetContainer()}
+	signWrapper := signature.StableMarshalerWrapper{SM: reqBody.GetContainer()}
 	err = sigutil.SignDataWithHandler(privKey, signWrapper, func(key []byte, sig []byte) {
 		containerSignature := new(refs.Signature)
 		containerSignature.SetKey(key)
 		containerSignature.SetSign(sig)
 		reqBody.SetSignature(containerSignature)
 	}, sigutil.SignWithRFC6979())
-	if err != nil {
-		return nil, err
-	}
+	die(err)
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
@@ -229,17 +227,89 @@ func NewContainerPutRequest(key *C.char, v2Container *C.char) (*C.char, error) {
 	// form request
 	var req v2container.PutRequest
 	req.SetBody(reqBody)
+
+	// Prepare Meta Header
+	// TODO: Check meta header params and set them accordingly
+	// 	i.e., ttl, version, network magic
 	req.SetMetaHeader(&meta)
-	return getMessageCChar(&req)
+
+	prepareMetaHeader(&req)
+
+	pr := getRequestToSigned(&req)
+
+	err = signature.SignServiceMessage(privKey, pr)
+	die(err)
+
+	jsonAfter, err := message.MarshalJSON(pr)
+	die(err)
+
+	cstr := C.CString(string(jsonAfter))
+
+	return cstr
+}
+
+func getBalanceRequestToSigned(req *v2accounting.BalanceRequest) *v2accounting.BalanceRequest {
+	pr := &v2accounting.BalanceRequest{}
+	m := pr.ToGRPCMessage().(proto.Message)
+	json, err := message.MarshalJSON(req)
+	die(err)
+	println("balance json:")
+	println(json)
+	err = protojson.Unmarshal(json, m)
+	die(err)
+
+	println("unmarshalled:")
+	println(m)
+	err = pr.FromGRPCMessage(m)
+	die(err)
+	return pr
+}
+
+func getRequestToSigned(req *v2container.PutRequest) *v2container.PutRequest {
+	pr := &v2container.PutRequest{}
+	m := pr.ToGRPCMessage().(proto.Message)
+	json, err := message.MarshalJSON(req)
+	die(err)
+	err = protojson.Unmarshal(json, m)
+	die(err)
+
+	err = pr.FromGRPCMessage(m)
+	die(err)
+	return pr
+}
+
+func prepareMetaHeaderBalancePut(req *v2accounting.BalanceRequest) {
+	meta := req.GetMetaHeader()
+	if meta == nil {
+		meta = new(v2session.RequestMetaHeader)
+		req.SetMetaHeader(meta)
+	}
+	if meta.GetTTL() == 0 {
+		meta.SetTTL(2)
+	}
+	if meta.GetVersion() == nil {
+		meta.SetVersion(version.Current().ToV2())
+	}
+	meta.SetNetworkMagic(12345)
+}
+
+func prepareMetaHeader(req *v2container.PutRequest) {
+	meta := req.GetMetaHeader()
+	if meta == nil {
+		meta = new(v2session.RequestMetaHeader)
+		req.SetMetaHeader(meta)
+	}
+	if meta.GetTTL() == 0 {
+		meta.SetTTL(2)
+	}
+	if meta.GetVersion() == nil {
+		meta.SetVersion(version.Current().ToV2())
+	}
+	meta.SetNetworkMagic(12345)
 }
 
 func getMessageCChar(req message.Message) (*C.char, error) {
 	jsonAfter, err := message.MarshalJSON(req)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Println(string(jsonAfter))
-
+	die(err)
 	return C.CString(string(jsonAfter)), nil
 }
