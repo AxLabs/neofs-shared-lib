@@ -2,11 +2,14 @@ package main
 
 import "C"
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/hex"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -15,7 +18,10 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	crypto "github.com/nspcc-dev/neofs-crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/acl"
+	neofsCli "github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
+	"github.com/nspcc-dev/neofs-sdk-go/netmap"
+	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -65,9 +71,115 @@ func main() {
 
 }
 
+//export PutContainer
+func PutContainer(v2Container *C.char, neofsEndpoint *C.char, key *C.char) *C.char {
+	//TESTNET := "grpcs://st01.testnet.fs.neo.org:8082"
+	privateKey := getPrivateKey(key)
+	ownerAcc := wallet.NewAccountFromPrivateKey(privateKey)
+
+	ctx := context.Background()
+
+	endpoint := C.GoString(neofsEndpoint)
+	// Create NeoFS client
+	fsCli, err := neofsCli.New(
+		neofsCli.WithDefaultPrivateKey(&privateKey.PrivateKey),
+		neofsCli.WithURIAddress(endpoint, nil),
+		neofsCli.WithNeoFSErrorParsing(),
+	)
+	if err != nil {
+		panic(fmt.Errorf("can't create neofs client: %w", err))
+	}
+
+	// Parse the container
+	cnr, err := getContainerFromV2(v2Container)
+
+	// Overwrites potential set container version and owner id
+	cnr.SetVersion(version.Current())
+	cnr.SetOwnerID(getOwnerID(ownerAcc))
+
+	// The following are expected to be set within the provided container parameter
+	//  - placement policy
+	//  - permissions
+	//  - attributes
+
+	var prmContainerPut neofsCli.PrmContainerPut
+	prmContainerPut.SetContainer(*cnr)
+
+	cnrResponse, err := fsCli.ContainerPut(ctx, prmContainerPut)
+	if err != nil {
+		panic(err)
+	}
+
+	containerID := cnrResponse.ID().String()
+	cstr := C.CString(containerID)
+	return cstr
+}
+
+//export PutContainerBasic
+func PutContainerBasic(key *C.char) *C.char {
+	TESTNET := "grpcs://st01.testnet.fs.neo.org:8082"
+	// create client from parameter
+	//ctx := context.TODO()
+	ctx := context.Background()
+	//walletCli, err := client.New(ctx, "http://seed1t4.neo.org:2332", client.Options{}) // get Neo endpoint from parameter
+	//if err != nil {
+	//	return fmt.Errorf("can't create wallet client: %w", err)
+	//}
+
+	privateKey := keys.PrivateKey{PrivateKey: *getECDSAPrivKey(key)}
+	ownerAcc := wallet.NewAccountFromPrivateKey(&privateKey)
+	fsCli, err := neofsCli.New(
+		neofsCli.WithDefaultPrivateKey(&privateKey.PrivateKey),
+		neofsCli.WithURIAddress(TESTNET, nil), // get NeoFS endpoint from parameter
+		neofsCli.WithNeoFSErrorParsing(),
+	)
+	if err != nil {
+		panic(fmt.Errorf("can't create neofs client: %w", err))
+	}
+
+	//	create container from parameter
+	//	required:
+	//	o	create placement policy
+	//	x	access to private key
+	//	o	set permissions
+	//	o	neofs client
+
+	ownerID := getOwnerID(ownerAcc)
+
+	placementPolicy := netmap.NewPlacementPolicy() // get placement policy from string
+
+	permissions := acl.PublicBasicRule
+	//acl.ParseBasicACL(aclString) // get acl from string argument
+
+	cnr := container.New(
+		container.WithPolicy(placementPolicy),
+		container.WithOwnerID(ownerID),
+		container.WithCustomBasicACL(permissions),
+	)
+
+	//attributes := container.Attributes{} // get attributes from string argument
+	//cnr.SetAttributes(attributes)
+
+	var prmContainerPut neofsCli.PrmContainerPut
+	prmContainerPut.SetContainer(*cnr)
+
+	cnrResponse, err := fsCli.ContainerPut(ctx, prmContainerPut)
+	if err != nil {
+		panic(err)
+	}
+
+	containerID := cnrResponse.ID().String()
+	cstr := C.CString(containerID)
+	return cstr
+}
+
+func getOwnerID(acc *wallet.Account) *owner.ID {
+	return owner.NewIDFromN3Account(acc)
+}
+
 //export SignServiceMessage
 func SignServiceMessage(key *C.char, json *C.char) *C.char {
-	getPrivKey(key)
+	getECDSAPrivKey(key)
 	keyStr := C.GoString(key)
 	jsonStr := C.GoString(json)
 
@@ -119,7 +231,11 @@ func SignServiceMessage(key *C.char, json *C.char) *C.char {
 	return cstr
 }
 
-func getPrivKey(key *C.char) *ecdsa.PrivateKey {
+func getPrivateKey(key *C.char) *keys.PrivateKey {
+	return &keys.PrivateKey{PrivateKey: *getECDSAPrivKey(key)}
+}
+
+func getECDSAPrivKey(key *C.char) *ecdsa.PrivateKey {
 	keyStr := C.GoString(key)
 	bytes, err := hex.DecodeString(keyStr)
 	die(err)
@@ -154,9 +270,9 @@ func getContainerFromV2(v2Container *C.char) (*container.Container, error) {
 	return sdkContainer, nil
 }
 
-//export GetBalance
-func GetBalance(key *C.char, ownerAddress *C.char) *C.char {
-	privKey := getPrivKey(key)
+//export GetBalanceRequest
+func GetBalanceRequest(key *C.char, ownerAddress *C.char) *C.char {
+	privKey := getECDSAPrivKey(key)
 	ownerIDString := C.GoString(ownerAddress)
 	println("owner id string:")
 	println(ownerIDString)
@@ -188,7 +304,7 @@ func GetBalance(key *C.char, ownerAddress *C.char) *C.char {
 
 //export NewContainerPutRequest
 func NewContainerPutRequest(key *C.char, v2Container *C.char) *C.char {
-	privKey := getPrivKey(key)
+	privKey := getECDSAPrivKey(key)
 
 	cnr, err := getContainerFromV2(v2Container)
 	if cnr.Version() == nil {
