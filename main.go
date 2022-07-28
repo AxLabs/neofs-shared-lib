@@ -1,5 +1,13 @@
 package main
 
+/*
+#include <stdlib.h>
+
+typedef struct {
+    char *responseType;
+    char *value;
+}response;
+*/
 import "C"
 import (
 	"context"
@@ -35,6 +43,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"math/big"
+	"sync"
 	"unsafe"
 )
 
@@ -101,7 +110,7 @@ func PutContainer(neofsEndpoint *C.char, key *C.char, v2Container *C.char) *C.ch
 	//TESTNET := "grpcs://st01.testnet.fs.neo.org:8082"
 	privateKey := getPrivateKey(key)
 	ownerAcc := wallet.NewAccountFromPrivateKey(privateKey)
-	fsCli := getClient(key, neofsEndpoint)
+	fsCli := getNewClient(key, neofsEndpoint)
 
 	ctx := context.Background()
 
@@ -132,7 +141,7 @@ func PutContainer(neofsEndpoint *C.char, key *C.char, v2Container *C.char) *C.ch
 
 //export GetContainer
 func GetContainer(neofsEndpoint *C.char, key *C.char, containerID *C.char) unsafe.Pointer {
-	fsCli := getClient(key, neofsEndpoint)
+	fsCli := getNewClient(key, neofsEndpoint)
 	ctx := context.Background()
 
 	// Parse the container
@@ -147,7 +156,7 @@ func GetContainer(neofsEndpoint *C.char, key *C.char, containerID *C.char) unsaf
 	}
 
 	if !apistatus.IsSuccessful(cnrResponse.Status()) {
-		return nil
+		resultStatusPanic()
 	}
 	containerJson, _ := cnrResponse.Container().MarshalJSON()
 	return C.CBytes(containerJson)
@@ -155,7 +164,7 @@ func GetContainer(neofsEndpoint *C.char, key *C.char, containerID *C.char) unsaf
 
 //export DeleteContainer
 func DeleteContainer(neofsEndpoint *C.char, key *C.char, containerID *C.char) *C.char {
-	fsCli := getClient(key, neofsEndpoint)
+	fsCli := getNewClient(key, neofsEndpoint)
 	ctx := context.Background()
 
 	// Parse the container
@@ -172,7 +181,7 @@ func DeleteContainer(neofsEndpoint *C.char, key *C.char, containerID *C.char) *C
 
 	// Handle unsuccessful request
 	if !apistatus.IsSuccessful(cnrResponse.Status()) {
-		return nil
+		resultStatusPanic()
 	}
 	return nil
 }
@@ -209,7 +218,7 @@ func ListContainer(neofsEndpoint *C.char, key *C.char, ownerPubKey *C.char) *C.c
 
 //export SetExtendedACL
 func SetExtendedACL(table *C.char, neofsEndpoint *C.char, key *C.char) *C.char {
-	fsCli := getClient(key, neofsEndpoint)
+	fsCli := getNewClient(key, neofsEndpoint)
 	ctx := context.Background()
 
 	// Parse the table
@@ -225,14 +234,14 @@ func SetExtendedACL(table *C.char, neofsEndpoint *C.char, key *C.char) *C.char {
 
 	// Handle unsuccessful request
 	if !apistatus.IsSuccessful(cnrResponse.Status()) {
-		return nil
+		resultStatusPanic()
 	}
 	return nil
 }
 
 //export GetExtendedACL
 func GetExtendedACL(containerID *C.char, neofsEndpoint *C.char, key *C.char) unsafe.Pointer {
-	fsCli := getClient(key, neofsEndpoint)
+	fsCli := getNewClient(key, neofsEndpoint)
 	ctx := context.Background()
 
 	// Parse the container
@@ -247,7 +256,7 @@ func GetExtendedACL(containerID *C.char, neofsEndpoint *C.char, key *C.char) uns
 	}
 
 	if !apistatus.IsSuccessful(cnrResponse.Status()) {
-		return nil
+		resultStatusPanic()
 	}
 	containerJson, _ := cnrResponse.Table().MarshalJSON()
 	return C.CBytes(containerJson)
@@ -270,7 +279,7 @@ func GetExtendedACL(containerID *C.char, neofsEndpoint *C.char, key *C.char) uns
 //	}
 //
 //	if !apistatus.IsSuccessful(cnrResponse.Status()) {
-//		return nil
+//		resultStatusPanic()
 //	}
 //	containerJson, _ := cnrResponse.Container().MarshalJSON()
 //	return C.CString(containerJson)
@@ -285,7 +294,7 @@ EndpointInfo
 
 //export NetworkInfo
 func NetworkInfo(neofsEndpoint *C.char, key *C.char) unsafe.Pointer {
-	fsCli := getClient(key, neofsEndpoint)
+	fsCli := getNewClient(key, neofsEndpoint)
 	ctx := context.Background()
 
 	var prmNetworkInfo neofsCli.PrmNetworkInfo
@@ -295,7 +304,7 @@ func NetworkInfo(neofsEndpoint *C.char, key *C.char) unsafe.Pointer {
 	}
 
 	if !apistatus.IsSuccessful(response.Status()) {
-		return nil
+		resultStatusPanic()
 	}
 	networkInfo, _ := response.Info().MarshalJSON()
 	return C.CBytes(networkInfo)
@@ -303,7 +312,7 @@ func NetworkInfo(neofsEndpoint *C.char, key *C.char) unsafe.Pointer {
 
 //export EndpointInfo
 func EndpointInfo(neofsEndpoint *C.char, key *C.char) unsafe.Pointer {
-	fsCli := getClient(key, neofsEndpoint)
+	fsCli := getNewClient(key, neofsEndpoint)
 	ctx := context.Background()
 
 	var prmEndpointInfo neofsCli.PrmEndpointInfo
@@ -313,14 +322,14 @@ func EndpointInfo(neofsEndpoint *C.char, key *C.char) unsafe.Pointer {
 	}
 
 	if !apistatus.IsSuccessful(response.Status()) {
-		return nil
+		resultStatusPanic()
 	}
 	nodeInfo, _ := response.NodeInfo().MarshalJSON()
 	return C.CBytes(nodeInfo)
 }
 
 func NetworkLatestVersion(neofsEndpoint *C.char, key *C.char) unsafe.Pointer {
-	fsCli := getClient(key, neofsEndpoint)
+	fsCli := getNewClient(key, neofsEndpoint)
 	ctx := context.Background()
 
 	var prmEndpointInfo neofsCli.PrmEndpointInfo
@@ -330,7 +339,7 @@ func NetworkLatestVersion(neofsEndpoint *C.char, key *C.char) unsafe.Pointer {
 	}
 
 	if !apistatus.IsSuccessful(response.Status()) {
-		return nil
+		resultStatusPanic()
 	}
 	latestVersion, _ := response.LatestVersion().MarshalJSON()
 	return C.CBytes(latestVersion)
@@ -391,7 +400,7 @@ GetRangeHash
 func DeleteObject(containerID *C.char, objectID *C.char, sessionToken *C.char, bearerToken *C.char, neofsEndpoint *C.char,
 	key *C.char) unsafe.Pointer {
 
-	fsCli := getClient(key, neofsEndpoint)
+	fsCli := getNewClient(key, neofsEndpoint)
 	ctx := context.Background()
 
 	cid := getContainerIDFromV2(containerID)
@@ -411,7 +420,7 @@ func DeleteObject(containerID *C.char, objectID *C.char, sessionToken *C.char, b
 	}
 
 	if !apistatus.IsSuccessful(cnrResponse.Status()) {
-		return nil
+		resultStatusPanic()
 	}
 	dst := new(oid.ID)
 	tombstoneRead := cnrResponse.ReadTombstoneID(dst)
@@ -426,7 +435,7 @@ func DeleteObject(containerID *C.char, objectID *C.char, sessionToken *C.char, b
 func GetObjectHead(containerID *C.char, objectID *C.char, sessionToken *C.char, bearerToken *C.char, neofsEndpoint *C.char,
 	key *C.char) unsafe.Pointer {
 
-	fsCli := getClient(key, neofsEndpoint)
+	fsCli := getNewClient(key, neofsEndpoint)
 	ctx := context.Background()
 
 	cid := getContainerIDFromV2(containerID)
@@ -446,12 +455,16 @@ func GetObjectHead(containerID *C.char, objectID *C.char, sessionToken *C.char, 
 	}
 
 	if !apistatus.IsSuccessful(response.Status()) {
-		return nil
+		resultStatusPanic()
 	}
 	obj := new(object.Object)
 	response.ReadHeader(obj)
 	objectWithReadHeader, _ := obj.MarshalJSON()
 	return C.CBytes(objectWithReadHeader)
+}
+
+func resultStatusPanic() {
+	panic("status unsuccessful")
 }
 
 ////export SearchObject s?
@@ -528,7 +541,7 @@ func GetObjectHead(containerID *C.char, objectID *C.char, sessionToken *C.char, 
 //	}
 //
 //	if !apistatus.IsSuccessful(cnrResponse.Status()) {
-//		return nil
+//		resultStatusPanic()
 //	}
 //	containerJson, _ := cnrResponse.Container().MarshalJSON()
 //	return C.CString(containerJson)
@@ -619,7 +632,7 @@ Create
 //	return C.CBytes(sessionID)
 //}
 
-func getClient(key *C.char, neofsEndpoint *C.char) *neofsCli.Client {
+func getNewClient(key *C.char, neofsEndpoint *C.char) *neofsCli.Client {
 	privateKey := getPrivateKey(key)
 	endpoint := C.GoString(neofsEndpoint)
 	cli, err := neofsCli.New(
@@ -1048,3 +1061,192 @@ func getMessageCChar(req message.Message) (*C.char, error) {
 	die(err)
 	return C.CString(string(jsonAfter)), nil
 }
+
+//region client
+
+type NeoFSClient struct {
+	mu     sync.RWMutex
+	client *neofsCli.Client
+}
+
+type NeoFSClients struct {
+	mu      sync.RWMutex
+	clients map[uuid.UUID]*NeoFSClient
+}
+
+func initClients(id uuid.UUID, newClient *neofsCli.Client) {
+	neofsClients = &NeoFSClients{sync.RWMutex{}, map[uuid.UUID]*NeoFSClient{id: {sync.RWMutex{}, newClient}}}
+}
+
+func (clients *NeoFSClients) put(id uuid.UUID, newClient *neofsCli.Client) {
+	clients.mu.Lock()
+	clients.clients[id] = &NeoFSClient{
+		mu:     sync.RWMutex{},
+		client: newClient,
+	}
+	clients.mu.Unlock()
+}
+
+func (clients *NeoFSClients) delete(id uuid.UUID) {
+	clients.mu.Lock()
+	delete(clients.clients, id)
+	clients.mu.Unlock()
+}
+
+var neofsClients *NeoFSClients
+
+func getClient(clientID *C.char) (*NeoFSClient, error) {
+	if neofsClients == nil {
+		return nil, fmt.Errorf("no clients present")
+	}
+	cliID, err := uuid.Parse(C.GoString(clientID))
+	if err != nil {
+		return nil, fmt.Errorf("could not parse provided client id")
+	}
+	neofsClients.mu.RLock()
+	cli := neofsClients.clients[cliID]
+	if cli == nil {
+		return nil, fmt.Errorf("no client present with id %v", C.GoString(clientID))
+	}
+	neofsClients.mu.RUnlock()
+	return cli, nil
+}
+
+//export CreateClient
+func CreateClient(key *C.char, neofsEndpoint *C.char) C.response {
+	privateKey := getPrivateKey(key)
+	endpoint := C.GoString(neofsEndpoint)
+	newClient, err := neofsCli.New(
+		neofsCli.WithDefaultPrivateKey(&privateKey.PrivateKey),
+		neofsCli.WithURIAddress(endpoint, nil),
+		neofsCli.WithNeoFSErrorParsing(),
+	)
+	if err != nil {
+		return cResponseError(fmt.Errorf("cannot create neofs client: %w", err).Error())
+	}
+	u, err := uuid.NewUUID()
+	if err != nil {
+		return cResponseError("cannot create uuid")
+	}
+
+	if neofsClients == nil {
+		initClients(u, newClient)
+	} else {
+		neofsClients.put(u, newClient)
+	}
+	return cResponse("Client", u.String())
+}
+
+//endregion client
+
+//export GetEndpointNodeInfo
+func GetEndpointNodeInfo(clientID *C.char) unsafe.Pointer {
+	cli, err := getClient(clientID)
+	if cli.client == nil {
+		return cResponseError("no client found")
+	}
+	cli.mu.RLock()
+	var prmEndpointInfo neofsCli.PrmEndpointInfo
+	ctx := context.Background()
+	resEndpointInfo, err := cli.client.EndpointInfo(ctx, prmEndpointInfo)
+	cli.mu.RUnlock()
+	if err != nil {
+		return cResponseError("could not get endpoint info")
+	}
+	status := resEndpointInfo.Status()
+	if !apistatus.IsSuccessful(status) {
+		return cResponseErrorStatus()
+	}
+	info := resEndpointInfo.NodeInfo()
+	if info == nil {
+		return cResponseError("could not get node info of the endpoint")
+	}
+	json, err := info.MarshalJSON()
+	if err != nil {
+		return cResponseError("could not marshal node info of the endpoint")
+	}
+	return cResponseBytes("nodeinfo", json)
+}
+
+//export GetEndpointLatestVersion
+func GetEndpointLatestVersion(clientID *C.char) C.response {
+	cli, err := getClient(clientID)
+	if err != nil {
+		return cResponseError(err.Error())
+	}
+	cli.mu.RLock()
+	var prmEndpointInfo neofsCli.PrmEndpointInfo
+	ctx := context.Background()
+	resEndpointInfo, err := cli.client.EndpointInfo(ctx, prmEndpointInfo)
+	cli.mu.RUnlock()
+	if err != nil {
+		return cResponseError("could not get endpoint info")
+	}
+	status := resEndpointInfo.Status()
+	if !apistatus.IsSuccessful(status) {
+		return cResponseErrorStatus()
+	}
+	latestVersion := resEndpointInfo.LatestVersion()
+	if latestVersion == nil {
+		return cResponseError("could not get latest version of endpoint")
+	}
+	json, err := latestVersion.MarshalJSON()
+	if err != nil {
+		return cResponseError("could not marshal latest version of endpoint")
+	}
+	return cResponseBytes("endpoint latest version", json)
+}
+
+//export GetNetworkInfo
+func GetNetworkInfo(clientID *C.char) C.response {
+	cli, err := getClient(clientID)
+	if err != nil {
+		return cResponseError(err.Error())
+	}
+	cli.mu.RLock()
+	var prmNetworkInfo neofsCli.PrmNetworkInfo
+	ctx := context.Background()
+	resNetworkInfo, err := cli.client.NetworkInfo(ctx, prmNetworkInfo)
+	cli.mu.RUnlock()
+	if err != nil {
+		return cResponseError("could not get endpoint info")
+	}
+	status := resNetworkInfo.Status()
+	if !apistatus.IsSuccessful(status) {
+		return cResponseErrorStatus()
+	}
+	info := resNetworkInfo.Info()
+	if info == nil {
+		return cResponseError("could not get network info of endpoint")
+	}
+	json, err := info.MarshalJSON()
+	if err != nil {
+		return cResponseError("could not marshal network info of endpoint")
+	}
+	//In order to allocate the memory in c use a more up-to-date implementation of the following:
+	//resp := (*C.struct_response)(C.malloc(C.size_t(unsafe.Sizeof(C.struct_response{}))))
+	//resp.responseType = (*C.char)(C.CString("net"))
+	//resp.value = (*C.char)(C.CBytes(json))
+	//return resp
+	return C.response{C.CString("world"), (*C.char)(C.CBytes(json))}
+}
+
+//region C.response
+
+func cResponseError(errorMsg string) C.response {
+	return C.response{C.CString("Error"), C.CString(errorMsg)}
+}
+
+func cResponseErrorStatus() C.response {
+	return cResponseError("result status not successful")
+}
+
+func cResponseBytes(responseType string, value []byte) C.response {
+	return C.response{C.CString(responseType), (*C.char)(C.CBytes(value))}
+}
+
+func cResponse(responseType string, value string) C.response {
+	return C.response{C.CString(responseType), C.CString(value)}
+}
+
+//endregion C.response
