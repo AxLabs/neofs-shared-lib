@@ -25,7 +25,7 @@ docker run --rm \
   -w /go/src/github.com/user/go-project \
   -e CGO_ENABLED=1 \
   docker.elastic.co/beats-dev/golang-crossbuild:1.17.6-darwin-debian10 \
-  --build-cmd "go build -o ./libs/libneofs-darwin-amd64.so -buildmode=c-shared main.go" \
+  --build-cmd "go build -o ./libs/libneofs-darwin-amd64.so -buildmode=c-shared main.go accounting.go container.go netmap.go object.go reputation.go session.go" \
   -p "darwin/amd64" || { echo 'ERROR: building shared lib failed. Exiting...'; exit 1; }
 
 docker run --rm \
@@ -33,7 +33,7 @@ docker run --rm \
   -w /go/src/github.com/user/go-project \
   -e CGO_ENABLED=1 \
   docker.elastic.co/beats-dev/golang-crossbuild:1.17.6-main-debian10 \
-  --build-cmd "go build -o ./libs/libneofs-linux-amd64.so -buildmode=c-shared main.go" \
+  --build-cmd "go build -o ./libs/libneofs-linux-amd64.so -buildmode=c-shared main.go accounting.go container.go netmap.go object.go reputation.go session.go" \
   -p "linux/amd64" || { echo 'ERROR: building shared lib failed. Exiting...'; exit 1; }
 
 # TODO: linux/i386 is not working...
@@ -42,7 +42,7 @@ docker run --rm \
 #  -w /go/src/github.com/user/go-project \
 #  -e CGO_ENABLED=1 \
 #  docker.elastic.co/beats-dev/golang-crossbuild:1.17.6-main-debian10 \
-#  --build-cmd "go build -o ./libs/libneofs-linux-i386.so -buildmode=c-shared main.go" \
+#  --build-cmd "go build -o ./libs/libneofs-linux-i386.so -buildmode=c-shared main.go accounting.go container.go netmap.go object.go reputation.go session.go" \
 #  -p "linux/i386" || { echo 'ERROR: building shared lib failed. Exiting...'; exit 1; }
 
 docker run --rm \
@@ -50,7 +50,7 @@ docker run --rm \
   -w /go/src/github.com/user/go-project \
   -e CGO_ENABLED=1 \
   docker.elastic.co/beats-dev/golang-crossbuild:1.17.6-arm-debian10 \
-  --build-cmd "go build -o ./libs/libneofs-linux-arm64.so -buildmode=c-shared main.go" \
+  --build-cmd "go build -o ./libs/libneofs-linux-arm64.so -buildmode=c-shared main.go accounting.go container.go netmap.go object.go reputation.go session.go" \
   -p "linux/arm64" || { echo 'ERROR: building shared lib failed. Exiting...'; exit 1; }
 
 docker run --rm \
@@ -58,7 +58,7 @@ docker run --rm \
   -w /go/src/github.com/user/go-project \
   -e CGO_ENABLED=1 \
   docker.elastic.co/beats-dev/golang-crossbuild:1.17.6-main-debian10 \
-  --build-cmd "go build -o ./libs/libneofs-windows-amd64.so -buildmode=c-shared main.go" \
+  --build-cmd "go build -o ./libs/libneofs-windows-amd64.so -buildmode=c-shared main.go accounting.go container.go netmap.go object.go reputation.go session.go" \
   -p "windows/amd64" || { echo 'ERROR: building shared lib failed. Exiting...'; exit 1; }
 
 docker run --rm \
@@ -66,5 +66,5 @@ docker run --rm \
   -w /go/src/github.com/user/go-project \
   -e CGO_ENABLED=1 \
   docker.elastic.co/beats-dev/golang-crossbuild:1.17.6-main-debian10 \
-  --build-cmd "go build -o ./libs/libneofs-windows-386.so -buildmode=c-shared main.go" \
+  --build-cmd "go build -o ./libs/libneofs-windows-386.so -buildmode=c-shared main.go accounting.go container.go netmap.go object.go reputation.go session.go" \
   -p "windows/386" || { echo 'ERROR: building shared lib failed. Exiting...'; exit 1; }
