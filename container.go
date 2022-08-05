@@ -12,22 +12,16 @@ import "C"
 import (
 	"context"
 	"fmt"
-	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/message"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/acl"
 	neofsCli "github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
-	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
+	"reflect"
 )
 
 /*
@@ -47,13 +41,13 @@ AnnounceUsedSpace
 func PutContainer(clientID *C.char, v2Container *C.char) C.response {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return cResponseErrorClient()
+		return clientErrorResponse()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	cnr, err := getContainerFromV2(v2Container)
 	if err != nil {
-		return cResponseError(err.Error())
+		return errorResponse(err.Error())
 	}
 	// Overwrites potentially set container version
 	cnr.SetVersion(version.Current())
@@ -66,29 +60,30 @@ func PutContainer(clientID *C.char, v2Container *C.char) C.response {
 
 	resContainerPut, err := cli.client.ContainerPut(ctx, prmContainerPut)
 	if err != nil {
-		return cResponseError("could not put container")
+		return errorResponse("could not put container")
 	}
 	if !apistatus.IsSuccessful(resContainerPut.Status()) {
-		return cResponseErrorStatus()
+		return resultStatusErrorResponse()
 	}
-	json, err := resContainerPut.ID().MarshalJSON()
+	containerID := resContainerPut.ID()
+	json, err := containerID.MarshalJSON()
 	if err != nil {
-		return cResponseError("could not marshal container put response")
+		return errorResponse("could not marshal container put response")
 	}
-	return cResponse("ContainerPut", json)
+	return newResponse(reflect.TypeOf(containerID), json)
 }
 
 //export GetContainer
 func GetContainer(clientID *C.char, v2ContainerID *C.char) C.response {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return cResponseErrorClient()
+		return clientErrorResponse()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	id, err := getContainerIDFromV2(v2ContainerID)
 	if err != nil {
-		return cResponseError(err.Error())
+		return errorResponse(err.Error())
 	}
 	var prmContainerGet neofsCli.PrmContainerGet
 	var prmContainerPut neofsCli.PrmContainerPut
@@ -99,29 +94,30 @@ func GetContainer(clientID *C.char, v2ContainerID *C.char) C.response {
 	cli.mu.RUnlock()
 
 	if err != nil {
-		return cResponseError("could not get container")
+		return errorResponse("could not get container")
 	}
 	if !apistatus.IsSuccessful(resContainerGet.Status()) {
-		return cResponseErrorStatus()
+		return resultStatusErrorResponse()
 	}
-	containerJson, err := resContainerGet.Container().MarshalJSON()
+	ctr := resContainerGet.Container()
+	containerJson, err := ctr.MarshalJSON()
 	if err != nil {
-		return cResponseError("could not marshal container put response")
+		return errorResponse("could not marshal container put response")
 	}
-	return cResponse("GetContainer", containerJson)
+	return newResponse(reflect.TypeOf(ctr), containerJson)
 }
 
 //export DeleteContainer
 func DeleteContainer(clientID *C.char, v2ContainerID *C.char) C.response {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return cResponseErrorClient()
+		return clientErrorResponse()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	id, err := getContainerIDFromV2(v2ContainerID)
 	if err != nil {
-		return cResponseError(err.Error())
+		return errorResponse(err.Error())
 	}
 	var prmContainerDelete neofsCli.PrmContainerDelete
 	prmContainerDelete.SetContainer(*id)
@@ -133,9 +129,11 @@ func DeleteContainer(clientID *C.char, v2ContainerID *C.char) C.response {
 	}
 
 	if !apistatus.IsSuccessful(resContainerDelete.Status()) {
-		return cResponseErrorStatus()
+		return resultStatusErrorResponse()
 	}
-	return cResponseString("DeleteContainer", "true") // handle methods without return value
+	boolean := []byte{1}
+	//return newResponsePointer(reflect.TypeOf(resContainerDelete), boolean) // handle methods without return value
+	return newResponse(reflect.TypeOf(resContainerDelete), boolean) // handle methods without return value
 }
 
 //export ListContainer
@@ -144,7 +142,7 @@ func ListContainer(clientID *C.char, ownerPubKey *C.char) {}
 //func ListContainer(clientID *C.char, ownerPubKey *C.char) *C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return cResponseErrorClient()
+//		return clientErrorResponse()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
@@ -154,13 +152,13 @@ func ListContainer(clientID *C.char, ownerPubKey *C.char) {}
 //	resContainerList, err := cli.client.ContainerList(ctx, prmContainerList)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return cResponseError("could not get container list")
+//		return errorResponse("could not get container list")
 //	}
 //	if !apistatus.IsSuccessful(resContainerList.Status()) {
-//		return cResponseErrorStatus()
+//		return resultStatusErrorResponse()
 //	}
 //	containerIDs := resContainerList.Containers()
-//	return cResponse("ContainerList", containerIDs[0]) // how return []cid.ID
+//	return newResponse("ContainerList", containerIDs[0]) // how return []cid.ID
 //}
 
 //export SetExtendedACL
@@ -169,13 +167,13 @@ func SetExtendedACL(clientID *C.char, table *C.char) {}
 //func SetExtendedACL(clientID *C.char, table *C.char) C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return cResponseErrorClient()
+//		return clientErrorResponse()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
 //	tab, err := getTableFromV2(table)
 //	if err != nil {
-//		return cResponseError(err.Error())
+//		return errorResponse(err.Error())
 //	}
 //	var prmContainerSetEACL neofsCli.PrmContainerSetEACL
 //	prmContainerSetEACL.SetTable(*tab)
@@ -183,25 +181,25 @@ func SetExtendedACL(clientID *C.char, table *C.char) {}
 //	resContainerSetEACL, err := cli.client.ContainerSetEACL(ctx, prmContainerSetEACL)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return cResponseError(err.Error())
+//		return errorResponse(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resContainerSetEACL.Status()) {
-//		return cResponseErrorStatus()
+//		return resultStatusErrorResponse()
 //	}
-//	return cResponse("SetExtendecEACL", ) // handle methods without return value
+//	return newResponse("SetExtendecEACL", ) // handle methods without return value
 //}
 
 //export GetExtendedACL
 func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.response {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return cResponseErrorClient()
+		return clientErrorResponse()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	containerID, err := getContainerIDFromV2(v2ContainerID)
 	if err != nil {
-		return cResponseError(err.Error())
+		return errorResponse(err.Error())
 	}
 	var prmContainerEACL neofsCli.PrmContainerEACL
 	prmContainerEACL.SetContainer(*containerID)
@@ -209,16 +207,17 @@ func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.response {
 	cnrResponse, err := cli.client.ContainerEACL(ctx, prmContainerEACL)
 	cli.mu.RUnlock()
 	if err != nil {
-		return cResponseError(err.Error())
+		return errorResponse(err.Error())
 	}
 	if !apistatus.IsSuccessful(cnrResponse.Status()) {
-		return cResponseErrorStatus()
+		return resultStatusErrorResponse()
 	}
-	containerJson, err := cnrResponse.Table().MarshalJSON()
+	table := cnrResponse.Table()
+	containerJson, err := table.MarshalJSON()
 	if err != nil {
-		return cResponseError("could not marshal container put response")
+		return errorResponse("could not marshal container put response")
 	}
-	return cResponse("GetExtendedACL", containerJson)
+	return newResponse(reflect.TypeOf(table), containerJson)
 }
 
 //export AnnounceUsedSpace
@@ -227,7 +226,7 @@ func AnnounceUsedSpace(clientID *C.char, announcements *C.char) {}
 //func AnnounceUsedSpace(clientID *C.char, announcements *C.char) C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return cResponseErrorClient()
+//		return clientErrorResponse()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
@@ -239,12 +238,12 @@ func AnnounceUsedSpace(clientID *C.char, announcements *C.char) {}
 //	resContainerAnnounceUsedSpace, err := cli.client.ContainerAnnounceUsedSpace(ctx, prmContainerAnnounceSpace)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return cResponseError(err.Error())
+//		return errorResponse(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resContainerAnnounceUsedSpace.Status()) {
-//		return cResponseErrorStatus()
+//		return resultStatusErrorResponse()
 //	}
-//	return cResponse("AnnounceUsedSpace", ) // handle methods without return value
+//	return newResponse("AnnounceUsedSpace") // handle methods without return value
 //}
 
 //endregion container
@@ -330,69 +329,70 @@ func PutContainerBasic(key *C.char) *C.char {
 	return cstr
 }
 
-//export NewContainerPutRequest
-func NewContainerPutRequest(key *C.char, v2Container *C.char) *C.char {
-	privKey := getECDSAPrivKey(key)
-
-	cnr, err := getContainerFromV2(v2Container)
-	if err != nil {
-		panic("could not get container from v2")
-	}
-	if cnr.Version() == nil {
-		cnr.SetVersion(version.Current())
-	}
-	_, err = cnr.NonceUUID()
-	if err != nil {
-		rand, err := uuid.NewRandom()
-		if err != nil {
-			panic("can't create new random " + err.Error())
-		}
-		cnr.SetNonceUUID(rand)
-	}
-	if cnr.BasicACL() == 0 {
-		cnr.SetBasicACL(acl.PrivateBasicRule)
-	}
-
-	// form request body
-	reqBody := new(v2container.PutRequestBody)
-	reqBody.SetContainer(cnr.ToV2())
-
-	// sign cnr
-	signWrapper := signature.StableMarshalerWrapper{SM: reqBody.GetContainer()}
-	err = sigutil.SignDataWithHandler(privKey, signWrapper, func(key []byte, sig []byte) {
-		containerSignature := new(refs.Signature)
-		containerSignature.SetKey(key)
-		containerSignature.SetSign(sig)
-		reqBody.SetSignature(containerSignature)
-	}, sigutil.SignWithRFC6979())
-	die(err)
-
-	// form meta header
-	var meta v2session.RequestMetaHeader
-	meta.SetSessionToken(cnr.SessionToken().ToV2())
-
-	// form request
-	var req v2container.PutRequest
-	req.SetBody(reqBody)
-
-	// Prepare Meta Header
-	// TODO: Check meta header params and set them accordingly
-	// 	i.e., ttl, version, network magic
-	req.SetMetaHeader(&meta)
-
-	prepareMetaHeader(&req)
-
-	pr := getRequestToSigned(&req)
-
-	err = signature.SignServiceMessage(privKey, pr)
-	die(err)
-
-	jsonAfter, err := message.MarshalJSON(pr)
-	die(err)
-
-	cstr := C.CString(string(jsonAfter))
-
-	return cstr
-}
+// old code
+////export NewContainerPutRequest
+//func NewContainerPutRequest(key *C.char, v2Container *C.char) *C.char {
+//	privKey := getECDSAPrivKey(key)
+//
+//	cnr, err := getContainerFromV2(v2Container)
+//	if err != nil {
+//		panic("could not get container from v2")
+//	}
+//	if cnr.Version() == nil {
+//		cnr.SetVersion(version.Current())
+//	}
+//	_, err = cnr.NonceUUID()
+//	if err != nil {
+//		rand, err := uuid.NewRandom()
+//		if err != nil {
+//			panic("can't create new random " + err.Error())
+//		}
+//		cnr.SetNonceUUID(rand)
+//	}
+//	if cnr.BasicACL() == 0 {
+//		cnr.SetBasicACL(acl.PrivateBasicRule)
+//	}
+//
+//	// form request body
+//	reqBody := new(v2container.PutRequestBody)
+//	reqBody.SetContainer(cnr.ToV2())
+//
+//	// sign cnr
+//	signWrapper := signature.StableMarshalerWrapper{SM: reqBody.GetContainer()}
+//	err = sigutil.SignDataWithHandler(privKey, signWrapper, func(key []byte, sig []byte) {
+//		containerSignature := new(refs.Signature)
+//		containerSignature.SetKey(key)
+//		containerSignature.SetSign(sig)
+//		reqBody.SetSignature(containerSignature)
+//	}, sigutil.SignWithRFC6979())
+//	die(err)
+//
+//	// form meta header
+//	var meta v2session.RequestMetaHeader
+//	meta.SetSessionToken(cnr.SessionToken().ToV2())
+//
+//	// form request
+//	var req v2container.PutRequest
+//	req.SetBody(reqBody)
+//
+//	// Prepare Meta Header
+//	// TODO: Check meta header params and set them accordingly
+//	// 	i.e., ttl, version, network magic
+//	req.SetMetaHeader(&meta)
+//
+//	prepareMetaHeader(&req)
+//
+//	pr := getRequestToSigned(&req)
+//
+//	err = signature.SignServiceMessage(privKey, pr)
+//	die(err)
+//
+//	jsonAfter, err := message.MarshalJSON(pr)
+//	die(err)
+//
+//	cstr := C.CString(string(jsonAfter))
+//
+//	return cstr
+//}
 
 //endregion container old

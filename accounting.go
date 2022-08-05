@@ -13,6 +13,7 @@ import (
 	"context"
 	neofsCli "github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	"reflect"
 )
 
 /*
@@ -24,7 +25,7 @@ Balance
 func GetBalance(clientID *C.char, publicKey *C.char) C.response {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return cResponseError(err.Error())
+		return errorResponse(err.Error())
 	}
 	cli.mu.RLock()
 	var prmBalanceGet neofsCli.PrmBalanceGet
@@ -35,19 +36,19 @@ func GetBalance(clientID *C.char, publicKey *C.char) C.response {
 	cli.mu.RUnlock()
 
 	if err != nil {
-		return cResponseError("could not get endpoint info")
+		return errorResponse("could not get endpoint info")
 	}
 	status := resBalanceGet.Status()
 	if !apistatus.IsSuccessful(status) {
-		return cResponseErrorStatus()
+		return resultStatusErrorResponse()
 	}
 	amount := resBalanceGet.Amount()
 	if amount == nil {
-		return cResponseError("could not get balance")
+		return errorResponse("could not get balance")
 	}
 	json, err := amount.MarshalJSON()
 	if err != nil {
-		return cResponseError("could not marshal network info of endpoint")
+		return errorResponse("could not marshal balance amount")
 	}
-	return C.response{C.CString("GetBalance"), (*C.char)(C.CBytes(json))}
+	return newResponse(reflect.TypeOf(amount), json)
 }

@@ -20,7 +20,7 @@ func CreateSession(clientID *C.char, sessionExpiration *C.ulonglong) {}
 //func CreateSession(clientID *C.char, sessionExpiration *C.ulonglong) C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return cResponseErrorClient()
+//		return clientErrorResponse()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
@@ -31,12 +31,12 @@ func CreateSession(clientID *C.char, sessionExpiration *C.ulonglong) {}
 //	resSessionCreate, err := cli.client.SessionCreate(ctx, prmSessionCreate)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return cResponseError(err.Error())
+//		return errorResponse(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resSessionCreate.Status()) {
-//		return cResponseErrorStatus()
+//		return resultStatusErrorResponse()
 //	}
 //	sessionID := resSessionCreate.ID()
 //	sessionPublicKey := resSessionCreate.PublicKey()
-//	return cResponse("CreateSession", ) // handle method with two return values
+//	return newResponse("CreateSession", ) // handle method with two return values
 //}

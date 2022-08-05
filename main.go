@@ -17,10 +17,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/message"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	neofsCli "github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
@@ -30,10 +28,10 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/token"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"math/big"
+	"reflect"
 	"sync"
 )
 
@@ -110,6 +108,8 @@ func die(err error) {
 		panic(err)
 	}
 }
+
+//region parse from v2
 
 func getObjectIDFromV2(objectID *C.char) (*oid.ID, error) {
 	id := new(oid.ID)
@@ -191,67 +191,7 @@ func getTableFromV2(table *C.char) (*eacl.Table, error) {
 //	c.Unmarshal(C.GoString(announcement))
 //}
 
-func getBalanceRequestToSigned(req *v2accounting.BalanceRequest) *v2accounting.BalanceRequest {
-	pr := &v2accounting.BalanceRequest{}
-	m := pr.ToGRPCMessage().(proto.Message)
-	json, err := message.MarshalJSON(req)
-	die(err)
-	println("balance json:")
-	println(json)
-	err = protojson.Unmarshal(json, m)
-	die(err)
-
-	println("unmarshalled:")
-	println(m)
-	err = pr.FromGRPCMessage(m)
-	die(err)
-	return pr
-}
-
-func getRequestToSigned(req *v2container.PutRequest) *v2container.PutRequest {
-	pr := &v2container.PutRequest{}
-	m := pr.ToGRPCMessage().(proto.Message)
-	json, err := message.MarshalJSON(req)
-	die(err)
-	err = protojson.Unmarshal(json, m)
-	die(err)
-
-	err = pr.FromGRPCMessage(m)
-	die(err)
-	return pr
-}
-
-func prepareMetaHeaderBalancePut(req *v2accounting.BalanceRequest) {
-	meta := req.GetMetaHeader()
-	if meta == nil {
-		meta = new(v2session.RequestMetaHeader)
-		req.SetMetaHeader(meta)
-	}
-	if meta.GetTTL() == 0 {
-		meta.SetTTL(2)
-	}
-	if meta.GetVersion() == nil {
-		meta.SetVersion(version.Current().ToV2())
-	}
-	meta.SetNetworkMagic(12345)
-}
-
-func prepareMetaHeader(req *v2container.PutRequest) {
-	meta := req.GetMetaHeader()
-	if meta == nil {
-		meta = new(v2session.RequestMetaHeader)
-		req.SetMetaHeader(meta)
-	}
-	if meta.GetTTL() == 0 {
-		meta.SetTTL(2)
-	}
-	if meta.GetVersion() == nil {
-		meta.SetVersion(version.Current().ToV2())
-	}
-	meta.SetNetworkMagic(12345)
-}
-
-//endregion container old
+//endregion parse from v2
 //region helper
 
 func getPubKey(publicKey *C.char) ecdsa.PublicKey {
@@ -320,7 +260,7 @@ func getClient(clientID *C.char) (*NeoFSClient, error) {
 }
 
 //export CreateClient
-func CreateClient(key *C.char, neofsEndpoint *C.char) C.response {
+func CreateClient(key *C.char, neofsEndpoint *C.char) C.responsePointer {
 	privateKey := getPrivateKey(key)
 	endpoint := C.GoString(neofsEndpoint)
 	newClient, err := neofsCli.New(
@@ -329,11 +269,11 @@ func CreateClient(key *C.char, neofsEndpoint *C.char) C.response {
 		neofsCli.WithNeoFSErrorParsing(),
 	)
 	if err != nil {
-		return cResponseError(fmt.Errorf("cannot create neofs client: %w", err).Error())
+		return errorResponsePointer(fmt.Errorf("cannot create neofs client: %w", err).Error())
 	}
 	u, err := uuid.NewUUID()
 	if err != nil {
-		return cResponseError("cannot create uuid")
+		return errorResponsePointer("cannot create uuid")
 	}
 
 	if neofsClients == nil {
@@ -341,31 +281,71 @@ func CreateClient(key *C.char, neofsEndpoint *C.char) C.response {
 	} else {
 		neofsClients.put(u, newClient)
 	}
-	return cResponseString("Client", u.String())
+	return newResponsePointer(reflect.TypeOf(u), []byte(u.String()))
+}
+
+//export DeleteClient
+func DeleteClient(clientID *C.char) error {
+	cliID, err := uuid.Parse(C.GoString(clientID))
+	if err != nil {
+		return fmt.Errorf("could not parse provided client id")
+	}
+	neofsClients.delete(cliID)
+	return nil
 }
 
 //endregion client
-
 //region C.response
 
-func cResponseError(errorMsg string) C.response {
-	return C.response{C.CString("Error"), C.CString(errorMsg)}
+func resultStatusErrorResponse() C.response {
+	return errorResponse("result status not successful")
 }
 
-func cResponseErrorStatus() C.response {
-	return cResponseError("result status not successful")
+func resultStatusErrorResponsePointer() C.responsePointer {
+	return errorResponsePointer("result status not successful")
 }
 
-func cResponseErrorClient() C.response {
-	return cResponseError("could not get client")
+func clientErrorResponse() C.response {
+	return errorResponse("could not get client")
 }
 
-func cResponse(responseType string, value []byte) C.response {
-	return C.response{C.CString(responseType), (*C.char)(C.CBytes(value))}
+func clientErrorResponsePointer() C.responsePointer {
+	return errorResponsePointer("could not get client")
 }
 
-func cResponseString(responseType string, value string) C.response {
-	return C.response{C.CString(responseType), C.CString(value)}
+func errorResponse(errorMsg string) C.response {
+	return newResponse(reflect.TypeOf(new(error)), []byte(errorMsg))
 }
+
+func errorResponsePointer(errorMsg string) C.responsePointer {
+	return newResponsePointer(reflect.TypeOf(new(error)), []byte(errorMsg))
+}
+
+func newResponse(responseType reflect.Type, value []byte) C.response {
+	return C.response{C.CString(responseType.String()), (*C.char)(C.CBytes(value))}
+}
+
+func newResponsePointer(responseType reflect.Type, value []byte) C.responsePointer {
+	return C.responsePointer{C.CString(responseType.String()), C.int(len(value)), (*C.char)(C.CBytes(value))}
+}
+
+//type GoResponse struct {
+//	respType []byte
+//	length   int64
+//	value    []byte
+//}
+//
+//func newArray(arrayOfCResponses []GoResponse) *C.responseThree {
+//	return (*C.responseThree)(&arrayOfCResponses[0])
+//	//cResps := C.createArray(len(responses))
+//	//for i := 0; i < len(responses); i++ {
+//	//	C.set(cResps, i, responses[i])
+//	//}
+//	//return cResps
+//}
+//
+//func newArray(arrayOfCResponses []GoResponse) *C.responseThree {
+//	return (*C.responseThree)(&arrayOfCResponses[0])
+//}
 
 //endregion C.response

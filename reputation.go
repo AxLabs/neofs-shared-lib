@@ -22,13 +22,13 @@ func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) {}
 //func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return cResponseErrorClient()
+//		return clientErrorResponse()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
 //	trusts, err := getTrustsFromV2(v2Trusts)
 //	if err != nil {
-//		return cResponseError(err.Error())
+//		return errorResponse(err.Error())
 //	}
 //
 //	var prmAnnounceLocalTrust neofsCli.PrmAnnounceLocalTrust
@@ -38,12 +38,12 @@ func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) {}
 //	resAnnounceLocalTrust, err := cli.client.AnnounceLocalTrust(ctx, prmAnnounceLocalTrust)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return cResponseError(err.Error())
+//		return errorResponse(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resAnnounceLocalTrust.Status()) {
-//		return cResponseErrorStatus()
+//		return resultStatusErrorResponse()
 //	}
-//	return cResponse("AnnounceLocalTrust", ) // handle methods without return value
+//	return newResponse("AnnounceLocalTrust", ) // handle methods without return value
 //}
 
 //export AnnounceIntermediateResult
@@ -53,7 +53,7 @@ func AnnounceIntermediateResult(clientID *C.char, v2P2PTrust *C.char, epoch *C.c
 //func AnnounceIntermediateResult(clientID *C.char, v2P2PTrust *C.char, epoch *C.char, iteration *C.char) C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return cResponseErrorClient()
+//		return clientErrorResponse()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
@@ -69,10 +69,10 @@ func AnnounceIntermediateResult(clientID *C.char, v2P2PTrust *C.char, epoch *C.c
 //	resAnnounceIntermediateTrust, err := cli.client.AnnounceIntermediateTrust(ctx, prmAnnounceIntermediateTrust)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return cResponseError(err.Error())
+//		return errorResponse(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resAnnounceIntermediateTrust.Status()) {
-//		return cResponseErrorStatus()
+//		return resultStatusErrorResponse()
 //	}
-//	return cResponse("AnnounceIntermediateLocalTrust", ) // handle methods without return value
+//	return newResponse("AnnounceIntermediateLocalTrust", ) // handle methods without return value
 //}
