@@ -43,7 +43,8 @@ func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) {}
 //	if !apistatus.IsSuccessful(resAnnounceLocalTrust.Status()) {
 //		return resultStatusErrorResponse()
 //	}
-//	return newResponse("AnnounceLocalTrust", ) // handle methods without return value
+//	boolean := []byte{1}
+//	return newResponse(reflect.TypeOf(boolean), boolean)
 //}
 
 //export AnnounceIntermediateResult
@@ -74,5 +75,6 @@ func AnnounceIntermediateResult(clientID *C.char, v2P2PTrust *C.char, epoch *C.c
 //	if !apistatus.IsSuccessful(resAnnounceIntermediateTrust.Status()) {
 //		return resultStatusErrorResponse()
 //	}
-//	return newResponse("AnnounceIntermediateLocalTrust", ) // handle methods without return value
+//	boolean := []byte{1}
+//	return newResponse(reflect.TypeOf(boolean), boolean)
 //}

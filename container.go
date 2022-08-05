@@ -38,16 +38,16 @@ AnnounceUsedSpace
 //region container
 
 //export PutContainer
-func PutContainer(clientID *C.char, v2Container *C.char) C.response {
+func PutContainer(clientID *C.char, v2Container *C.char) C.responsePointer {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponse()
+		return clientErrorResponsePointer()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	cnr, err := getContainerFromV2(v2Container)
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	// Overwrites potentially set container version
 	cnr.SetVersion(version.Current())
@@ -60,30 +60,30 @@ func PutContainer(clientID *C.char, v2Container *C.char) C.response {
 
 	resContainerPut, err := cli.client.ContainerPut(ctx, prmContainerPut)
 	if err != nil {
-		return errorResponse("could not put container")
+		return errorResponsePointer("could not put container")
 	}
 	if !apistatus.IsSuccessful(resContainerPut.Status()) {
-		return resultStatusErrorResponse()
+		return resultStatusErrorResponsePointer()
 	}
 	containerID := resContainerPut.ID()
 	json, err := containerID.MarshalJSON()
 	if err != nil {
-		return errorResponse("could not marshal container put response")
+		return errorResponsePointer("could not marshal container put response")
 	}
-	return newResponse(reflect.TypeOf(containerID), json)
+	return newResponsePointer(reflect.TypeOf(containerID), json)
 }
 
 //export GetContainer
-func GetContainer(clientID *C.char, v2ContainerID *C.char) C.response {
+func GetContainer(clientID *C.char, v2ContainerID *C.char) C.responsePointer {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponse()
+		return clientErrorResponsePointer()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	id, err := getContainerIDFromV2(v2ContainerID)
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	var prmContainerGet neofsCli.PrmContainerGet
 	var prmContainerPut neofsCli.PrmContainerPut
@@ -94,30 +94,30 @@ func GetContainer(clientID *C.char, v2ContainerID *C.char) C.response {
 	cli.mu.RUnlock()
 
 	if err != nil {
-		return errorResponse("could not get container")
+		return errorResponsePointer("could not get container")
 	}
 	if !apistatus.IsSuccessful(resContainerGet.Status()) {
-		return resultStatusErrorResponse()
+		return resultStatusErrorResponsePointer()
 	}
 	ctr := resContainerGet.Container()
 	containerJson, err := ctr.MarshalJSON()
 	if err != nil {
-		return errorResponse("could not marshal container put response")
+		return errorResponsePointer("could not marshal container put response")
 	}
-	return newResponse(reflect.TypeOf(ctr), containerJson)
+	return newResponsePointer(reflect.TypeOf(ctr), containerJson)
 }
 
 //export DeleteContainer
-func DeleteContainer(clientID *C.char, v2ContainerID *C.char) C.response {
+func DeleteContainer(clientID *C.char, v2ContainerID *C.char) C.responsePointer {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponse()
+		return clientErrorResponsePointer()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	id, err := getContainerIDFromV2(v2ContainerID)
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	var prmContainerDelete neofsCli.PrmContainerDelete
 	prmContainerDelete.SetContainer(*id)
@@ -129,11 +129,10 @@ func DeleteContainer(clientID *C.char, v2ContainerID *C.char) C.response {
 	}
 
 	if !apistatus.IsSuccessful(resContainerDelete.Status()) {
-		return resultStatusErrorResponse()
+		return resultStatusErrorResponsePointer()
 	}
 	boolean := []byte{1}
-	//return newResponsePointer(reflect.TypeOf(resContainerDelete), boolean) // handle methods without return value
-	return newResponse(reflect.TypeOf(resContainerDelete), boolean) // handle methods without return value
+	return newResponsePointer(reflect.TypeOf(resContainerDelete), boolean) // handle methods without return value
 }
 
 //export ListContainer
@@ -162,44 +161,43 @@ func ListContainer(clientID *C.char, ownerPubKey *C.char) {}
 //}
 
 //export SetExtendedACL
-func SetExtendedACL(clientID *C.char, table *C.char) {}
-
-//func SetExtendedACL(clientID *C.char, table *C.char) C.response {
-//	cli, err := getClient(clientID)
-//	if err != nil {
-//		return clientErrorResponse()
-//	}
-//	cli.mu.RLock()
-//	ctx := context.Background()
-//	tab, err := getTableFromV2(table)
-//	if err != nil {
-//		return errorResponse(err.Error())
-//	}
-//	var prmContainerSetEACL neofsCli.PrmContainerSetEACL
-//	prmContainerSetEACL.SetTable(*tab)
-//
-//	resContainerSetEACL, err := cli.client.ContainerSetEACL(ctx, prmContainerSetEACL)
-//	cli.mu.RUnlock()
-//	if err != nil {
-//		return errorResponse(err.Error())
-//	}
-//	if !apistatus.IsSuccessful(resContainerSetEACL.Status()) {
-//		return resultStatusErrorResponse()
-//	}
-//	return newResponse("SetExtendecEACL", ) // handle methods without return value
-//}
-
-//export GetExtendedACL
-func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.response {
+func SetExtendedACL(clientID *C.char, v2Table *C.char) C.responsePointer {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponse()
+		return clientErrorResponsePointer()
+	}
+	cli.mu.RLock()
+	ctx := context.Background()
+	table, err := getTableFromV2(v2Table)
+	if err != nil {
+		return errorResponsePointer(err.Error())
+	}
+	var prmContainerSetEACL neofsCli.PrmContainerSetEACL
+	prmContainerSetEACL.SetTable(*table)
+
+	resContainerSetEACL, err := cli.client.ContainerSetEACL(ctx, prmContainerSetEACL)
+	cli.mu.RUnlock()
+	if err != nil {
+		return errorResponsePointer(err.Error())
+	}
+	if !apistatus.IsSuccessful(resContainerSetEACL.Status()) {
+		return resultStatusErrorResponsePointer()
+	}
+	boolean := []byte{1}
+	return newResponsePointer(reflect.TypeOf(boolean), boolean)
+}
+
+//export GetExtendedACL
+func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.responsePointer {
+	cli, err := getClient(clientID)
+	if err != nil {
+		return clientErrorResponsePointer()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	containerID, err := getContainerIDFromV2(v2ContainerID)
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	var prmContainerEACL neofsCli.PrmContainerEACL
 	prmContainerEACL.SetContainer(*containerID)
@@ -207,26 +205,26 @@ func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.response {
 	cnrResponse, err := cli.client.ContainerEACL(ctx, prmContainerEACL)
 	cli.mu.RUnlock()
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	if !apistatus.IsSuccessful(cnrResponse.Status()) {
-		return resultStatusErrorResponse()
+		return resultStatusErrorResponsePointer()
 	}
 	table := cnrResponse.Table()
 	containerJson, err := table.MarshalJSON()
 	if err != nil {
-		return errorResponse("could not marshal container put response")
+		return errorResponsePointer("could not marshal container put response")
 	}
-	return newResponse(reflect.TypeOf(table), containerJson)
+	return newResponsePointer(reflect.TypeOf(table), containerJson)
 }
 
 //export AnnounceUsedSpace
 func AnnounceUsedSpace(clientID *C.char, announcements *C.char) {}
 
-//func AnnounceUsedSpace(clientID *C.char, announcements *C.char) C.response {
+//func AnnounceUsedSpace(clientID *C.char, announcements *C.char) C.responsePointer {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return clientErrorResponse()
+//		return clientErrorResponsePointer()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
@@ -238,12 +236,13 @@ func AnnounceUsedSpace(clientID *C.char, announcements *C.char) {}
 //	resContainerAnnounceUsedSpace, err := cli.client.ContainerAnnounceUsedSpace(ctx, prmContainerAnnounceSpace)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return errorResponsePointer(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resContainerAnnounceUsedSpace.Status()) {
-//		return resultStatusErrorResponse()
+//		return resultStatusErrorResponsePointer()
 //	}
-//	return newResponse("AnnounceUsedSpace") // handle methods without return value
+//	boolean := []byte{1}
+//	return newResponsePointer(reflect.TypeOf(boolean), boolean)
 //}
 
 //endregion container

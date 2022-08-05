@@ -30,69 +30,101 @@ GetRangeHash
 */
 
 ////export GetObjectInit
-//func GetObjectInit(containerID *C.char, neofsEndpoint *C.char, key *C.char) *C.char {
-//	fsCli := getClient(key, neofsEndpoint)
+func GetObjectInit(clientID *C.char, v2ContainerID *C.char) {}
+
+//func GetObjectInit(clientID *C.char, v2ContainerID *C.char) *C.responsePointer {
+//	cli, err := getClient(clientID)
+//	if err != nil {
+//		return clientErrorResponsePointer()
+//	}
+//	cli.mu.RLock()
 //	ctx := context.Background()
 //
 //	// Parse the container
-//	id := getContainerIDFromV2(containerID)
+//	id, err := getContainerIDFromV2(v2ContainerID)
+//	if err != nil {
+//		return errorResponsePointer(err.Error())
+//	}
 //
 //	var prmObjectGet neofsCli.PrmObjectGet
-//	prmObjectGet.FromContainer()
+//	prmObjectGet.FromContainer(*id) // required
+//	prmObjectGet.ByID()             // required
+//	//prmObjectGet.MarkLocal()        // optional, tells the server to execute operation locally
+//	//prmObjectGet.MarkRaw()          // optional, marks intent to read physically stored object
+//	//prmObjectGet.WithinSession()    // optional
+//	//prmObjectGet.WithBearerToken()  // optional
 //
-//	response, err := fsCli.ObjectGetInit(ctx, prmObjectGet)
+//	response, err := cli.client.ObjectGetInit(ctx, prmObjectGet)
+//	cli.mu.RUnlock()
 //	if err != nil {
 //		panic(err)
 //	}
 //
-//	response.Read()
-//	return C.CString(containerJson)
+//	// todo: Check how exactly to read object bytes
+//	//response.UseKey()
+//	//response.Read()
+//	//response.ReadChunk()
+//	//response.ReadHeader()
+//	read, err := response.Read()
+//	if err != nil {
+//		return nil
+//	}
+//	return C.CString() // return pointer to object reader and
 //}
 
-////export ReadObject
-//func ReadObject(objectReader *C.char) {
-//
-//}
+////export PutObjectInit
+func PutObjectInit(clientID *C.char, key *C.char) {}
 
-////export PutObject
-//func PutObject(neofsEndpoint *C.char, key *C.char) *C.char {
-//	fsCli, err := getClient(key)
+//func PutObjectInit(clientID *C.char, key *C.char) *C.responsePointer {
+//	cli, err := getClient(key)
+//	if err != nil {
+//		return clientErrorResponsePointer()
+//	}
+//	cli.mu.RLock()
 //	ctx := context.Background()
 //
 //	var prmObjectPutInit neofsCli.PrmObjectPutInit
-//	response, err := fsCli.client.ObjectPutInit(ctx, prmObjectPutInit)
+//	objectWriter, err := cli.client.ObjectPutInit(ctx, prmObjectPutInit)
+//	cli.mu.RUnlock()
 //	if err != nil {
 //		panic(err)
 //	}
+//	//objectWriter.UseKey()
+//	//objectWriter.MarkLocal() // optional
+//	//objectWriter.WithinSession()
+//	//objectWriter.WithBearerToken()
+//	objectWriter.WritePayloadChunk()
+//	//objectWriter.WriteHeader()
+//	//objectWriter.Close() // in separate method or when all is read
 //
-//	//response.WritePayloadChunk()
-//	//response.
-//	return C.CString(containerJson)
+//	return newResponsePointer()
 //}
 
 //export DeleteObject
-func DeleteObject(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char, v2BearerToken *C.char) C.response {
+func DeleteObject(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char,
+	v2BearerToken *C.char) C.responsePointer {
+
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponse()
+		return clientErrorResponsePointer()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	containerID, err := getContainerIDFromV2(v2ContainerID)
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	objectID, err := getObjectIDFromV2(v2ObjectID)
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	sessionToken, err := getSessionTokenFromV2(v2SessionToken)
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	bearerToken, err := getBearerTokenFromV2(v2BearerToken)
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	var prmObjectDelete neofsCli.PrmObjectDelete
 	prmObjectDelete.FromContainer(*containerID)
@@ -103,46 +135,48 @@ func DeleteObject(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v
 	resObjectDelete, err := cli.client.ObjectDelete(ctx, prmObjectDelete)
 	cli.mu.RUnlock()
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	if !apistatus.IsSuccessful(resObjectDelete.Status()) {
-		return resultStatusErrorResponse()
+		return resultStatusErrorResponsePointer()
 	}
 	readTombStoneID := new(oid.ID)
 	tombstoneRead := resObjectDelete.ReadTombstoneID(readTombStoneID)
 	if !tombstoneRead {
-		return errorResponse("could not read object's tombstone")
+		return errorResponsePointer("could not read object's tombstone")
 	}
 	json, err := readTombStoneID.MarshalJSON()
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
-	return newResponse(reflect.TypeOf(tombstoneRead), json)
+	return newResponsePointer(reflect.TypeOf(tombstoneRead), json)
 }
 
 //export GetObjectHead
-func GetObjectHead(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char, v2BearerToken *C.char) C.response {
+func GetObjectHead(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char,
+	v2BearerToken *C.char) C.responsePointer {
+
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponse()
+		return clientErrorResponsePointer()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	containerID, err := getContainerIDFromV2(v2ContainerID)
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	objectID, err := getObjectIDFromV2(v2ObjectID)
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	sessionToken, err := getSessionTokenFromV2(v2SessionToken)
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	bearerToken, err := getBearerTokenFromV2(v2BearerToken)
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
 	var prmObjectHead neofsCli.PrmObjectHead
 	prmObjectHead.FromContainer(*containerID)
@@ -153,18 +187,18 @@ func GetObjectHead(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, 
 	resObjectHead, err := cli.client.ObjectHead(ctx, prmObjectHead)
 	cli.mu.RUnlock()
 	if err != nil {
-		panic(err)
+		return errorResponsePointer(err.Error())
 	}
 	if !apistatus.IsSuccessful(resObjectHead.Status()) {
-		return resultStatusErrorResponse()
+		return resultStatusErrorResponsePointer()
 	}
 	dst := new(object.Object)
 	resObjectHead.ReadHeader(dst)
 	json, err := dst.MarshalJSON()
 	if err != nil {
-		return errorResponse(err.Error())
+		return errorResponsePointer(err.Error())
 	}
-	return newResponse(reflect.TypeOf(dst), json)
+	return newResponsePointer(reflect.TypeOf(dst), json)
 }
 
 //export SearchObject

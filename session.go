@@ -9,34 +9,71 @@ package main
 #endif
 */
 import "C"
+import (
+	"context"
+	neofsCli "github.com/nspcc-dev/neofs-sdk-go/client"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	"reflect"
+	"strconv"
+)
 
 /*
 ----Session----
 Create
 */
 //export CreateSession
-func CreateSession(clientID *C.char, sessionExpiration *C.ulonglong) {}
+//func CreateSession(clientID *C.char, sessionExpiration *C.ulonglong) {}
 
-//func CreateSession(clientID *C.char, sessionExpiration *C.ulonglong) C.response {
-//	cli, err := getClient(clientID)
-//	if err != nil {
-//		return clientErrorResponse()
-//	}
-//	cli.mu.RLock()
-//	ctx := context.Background()
-//	exp := sessionExpiration // uint
-//	var prmSessionCreate neofsCli.PrmSessionCreate
-//	prmSessionCreate.SetExp(exp)
-//
-//	resSessionCreate, err := cli.client.SessionCreate(ctx, prmSessionCreate)
-//	cli.mu.RUnlock()
-//	if err != nil {
-//		return errorResponse(err.Error())
-//	}
-//	if !apistatus.IsSuccessful(resSessionCreate.Status()) {
-//		return resultStatusErrorResponse()
-//	}
-//	sessionID := resSessionCreate.ID()
-//	sessionPublicKey := resSessionCreate.PublicKey()
-//	return newResponse("CreateSession", ) // handle method with two return values
-//}
+func CreateSession(clientID *C.char, sessionExpiration *C.char) C.responsePointer {
+	cli, err := getClient(clientID)
+	if err != nil {
+		return clientErrorResponsePointer()
+	}
+	cli.mu.RLock()
+	ctx := context.Background()
+	var prmSessionCreate neofsCli.PrmSessionCreate
+	exp, err := strconv.ParseUint(C.GoString(sessionExpiration), 10, 64)
+	if err != nil {
+		return errorResponsePointer("could not parse session expiration to uint64")
+	}
+	prmSessionCreate.SetExp(exp)
+
+	resSessionCreate, err := cli.client.SessionCreate(ctx, prmSessionCreate)
+	cli.mu.RUnlock()
+	if err != nil {
+		return errorResponsePointer(err.Error())
+	}
+	if !apistatus.IsSuccessful(resSessionCreate.Status()) {
+		return resultStatusErrorResponsePointer()
+	}
+	sessionID := resSessionCreate.ID()
+	//sessionPublicKey := resSessionCreate.PublicKey()
+	return newResponsePointer(reflect.TypeOf(sessionID), sessionID) // handle method with two return values
+}
+
+//export CreateSessionPubKey
+func CreateSessionPubKey(clientID *C.char, sessionExpiration *C.char) C.responsePointer {
+	cli, err := getClient(clientID)
+	if err != nil {
+		return clientErrorResponsePointer()
+	}
+	cli.mu.RLock()
+	ctx := context.Background()
+	var prmSessionCreate neofsCli.PrmSessionCreate
+	exp, err := strconv.ParseUint(C.GoString(sessionExpiration), 10, 64)
+	if err != nil {
+		return errorResponsePointer("could not parse session expiration to uint64")
+	}
+	prmSessionCreate.SetExp(exp)
+
+	resSessionCreate, err := cli.client.SessionCreate(ctx, prmSessionCreate)
+	cli.mu.RUnlock()
+	if err != nil {
+		return errorResponsePointer(err.Error())
+	}
+	if !apistatus.IsSuccessful(resSessionCreate.Status()) {
+		return resultStatusErrorResponsePointer()
+	}
+	sessionPublicKey := resSessionCreate.PublicKey()
+	return newResponsePointer(reflect.TypeOf(sessionPublicKey), sessionPublicKey) // handle method with two return values
+}
