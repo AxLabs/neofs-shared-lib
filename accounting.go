@@ -22,10 +22,10 @@ Balance
 */
 
 //export GetBalance
-func GetBalance(clientID *C.char, publicKey *C.char) C.responsePointer {
+func GetBalance(clientID *C.char, publicKey *C.char) C.pointerResponse {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	cli.mu.RLock()
 	var prmBalanceGet neofsCli.PrmBalanceGet
@@ -36,7 +36,7 @@ func GetBalance(clientID *C.char, publicKey *C.char) C.responsePointer {
 	cli.mu.RUnlock()
 
 	if err != nil {
-		return errorResponsePointer("could not get endpoint info")
+		return pointerResponseError("could not get endpoint info")
 	}
 	status := resBalanceGet.Status()
 	if !apistatus.IsSuccessful(status) {
@@ -44,11 +44,11 @@ func GetBalance(clientID *C.char, publicKey *C.char) C.responsePointer {
 	}
 	amount := resBalanceGet.Amount()
 	if amount == nil {
-		return errorResponsePointer("could not get balance")
+		return pointerResponseError("could not get balance")
 	}
-	json, err := amount.MarshalJSON()
+	bytes, err := amount.Marshal()
 	if err != nil {
-		return errorResponsePointer("could not marshal balance amount")
+		return pointerResponseError("could not marshal balance amount")
 	}
-	return newResponsePointer(reflect.TypeOf(amount), json)
+	return pointerResponse(reflect.TypeOf(amount), bytes)
 }

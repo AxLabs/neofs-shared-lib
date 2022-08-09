@@ -22,13 +22,13 @@ func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) {}
 //func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return clientErrorResponse()
+//		return responseClientError()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
 //	trusts, err := getTrustsFromV2(v2Trusts)
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //
 //	var prmAnnounceLocalTrust neofsCli.PrmAnnounceLocalTrust
@@ -38,13 +38,13 @@ func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) {}
 //	resAnnounceLocalTrust, err := cli.client.AnnounceLocalTrust(ctx, prmAnnounceLocalTrust)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resAnnounceLocalTrust.Status()) {
 //		return resultStatusErrorResponse()
 //	}
 //	boolean := []byte{1}
-//	return newResponse(reflect.TypeOf(boolean), boolean)
+//	return response(reflect.TypeOf(boolean), boolean)
 //}
 
 //export AnnounceIntermediateResult
@@ -54,7 +54,7 @@ func AnnounceIntermediateResult(clientID *C.char, v2P2PTrust *C.char, epoch *C.c
 //func AnnounceIntermediateResult(clientID *C.char, v2P2PTrust *C.char, epoch *C.char, iteration *C.char) C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return clientErrorResponse()
+//		return responseClientError()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
@@ -70,11 +70,11 @@ func AnnounceIntermediateResult(clientID *C.char, v2P2PTrust *C.char, epoch *C.c
 //	resAnnounceIntermediateTrust, err := cli.client.AnnounceIntermediateTrust(ctx, prmAnnounceIntermediateTrust)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resAnnounceIntermediateTrust.Status()) {
 //		return resultStatusErrorResponse()
 //	}
 //	boolean := []byte{1}
-//	return newResponse(reflect.TypeOf(boolean), boolean)
+//	return response(reflect.TypeOf(boolean), boolean)
 //}

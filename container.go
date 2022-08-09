@@ -12,6 +12,7 @@ import "C"
 import (
 	"context"
 	"fmt"
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-sdk-go/acl"
@@ -38,19 +39,25 @@ AnnounceUsedSpace
 //region container
 
 //export PutContainer
-func PutContainer(clientID *C.char, v2Container *C.char) C.responsePointer {
+func PutContainer(clientID *C.char, v2Container *C.char) C.response {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponsePointer()
+		return responseClientError()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	cnr, err := getContainerFromV2(v2Container)
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return responseError(err.Error())
 	}
 	// Overwrites potentially set container version
 	cnr.SetVersion(version.Current())
+	newUUID, err := uuid.NewRandom()
+	if err != nil {
+		return responseError(err.Error())
+	}
+	cnr.SetNonceUUID(newUUID)
+
 	// The following are expected to be set within the provided container parameter
 	//  - placement policy
 	//  - permissions
@@ -60,79 +67,73 @@ func PutContainer(clientID *C.char, v2Container *C.char) C.responsePointer {
 
 	resContainerPut, err := cli.client.ContainerPut(ctx, prmContainerPut)
 	if err != nil {
-		return errorResponsePointer("could not put container")
+		return responseError(err.Error())
 	}
 	if !apistatus.IsSuccessful(resContainerPut.Status()) {
-		return resultStatusErrorResponsePointer()
+		return resultStatusErrorResponse()
 	}
 	containerID := resContainerPut.ID()
-	json, err := containerID.MarshalJSON()
-	if err != nil {
-		return errorResponsePointer("could not marshal container put response")
-	}
-	return newResponsePointer(reflect.TypeOf(containerID), json)
+	return response(reflect.TypeOf(containerID), containerID.String())
 }
 
 //export GetContainer
-func GetContainer(clientID *C.char, v2ContainerID *C.char) C.responsePointer {
+func GetContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponsePointer()
+		return pointerResponseClientError()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
-	id, err := getContainerIDFromV2(v2ContainerID)
+	id := cid.New()
+	err = id.Parse(C.GoString(containerID))
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	var prmContainerGet neofsCli.PrmContainerGet
-	var prmContainerPut neofsCli.PrmContainerPut
-	prmContainerPut.SetContainer(container.Container{})
 	prmContainerGet.SetContainer(*id)
 
 	resContainerGet, err := cli.client.ContainerGet(ctx, prmContainerGet)
 	cli.mu.RUnlock()
 
 	if err != nil {
-		return errorResponsePointer("could not get container")
+		return pointerResponseError("could not get container")
 	}
 	if !apistatus.IsSuccessful(resContainerGet.Status()) {
 		return resultStatusErrorResponsePointer()
 	}
 	ctr := resContainerGet.Container()
-	containerJson, err := ctr.MarshalJSON()
+	container, err := ctr.Marshal()
 	if err != nil {
-		return errorResponsePointer("could not marshal container put response")
+		return pointerResponseError("could not marshal container put response")
 	}
-	return newResponsePointer(reflect.TypeOf(ctr), containerJson)
+	return pointerResponse(reflect.TypeOf(ctr), container)
 }
 
 //export DeleteContainer
-func DeleteContainer(clientID *C.char, v2ContainerID *C.char) C.responsePointer {
+func DeleteContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponsePointer()
+		return pointerResponseClientError()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
-	id, err := getContainerIDFromV2(v2ContainerID)
+	id := cid.New()
+	err = id.Parse(C.GoString(containerID))
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	var prmContainerDelete neofsCli.PrmContainerDelete
 	prmContainerDelete.SetContainer(*id)
-	//prmContainerGet.SetSessionToken()
 
 	resContainerDelete, err := cli.client.ContainerDelete(ctx, prmContainerDelete)
 	if err != nil {
-		panic(err)
+		pointerResponseError(err.Error())
 	}
 
 	if !apistatus.IsSuccessful(resContainerDelete.Status()) {
 		return resultStatusErrorResponsePointer()
 	}
-	boolean := []byte{1}
-	return newResponsePointer(reflect.TypeOf(resContainerDelete), boolean) // handle methods without return value
+	return pointerResponseNil()
 }
 
 //export ListContainer
@@ -141,7 +142,7 @@ func ListContainer(clientID *C.char, ownerPubKey *C.char) {}
 //func ListContainer(clientID *C.char, ownerPubKey *C.char) *C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return clientErrorResponse()
+//		return responseClientError()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
@@ -151,26 +152,26 @@ func ListContainer(clientID *C.char, ownerPubKey *C.char) {}
 //	resContainerList, err := cli.client.ContainerList(ctx, prmContainerList)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return errorResponse("could not get container list")
+//		return responseError("could not get container list")
 //	}
 //	if !apistatus.IsSuccessful(resContainerList.Status()) {
 //		return resultStatusErrorResponse()
 //	}
 //	containerIDs := resContainerList.Containers()
-//	return newResponse("ContainerList", containerIDs[0]) // how return []cid.ID
+//	return response("ContainerList", containerIDs[0]) // how return []cid.ID
 //}
 
 //export SetExtendedACL
-func SetExtendedACL(clientID *C.char, v2Table *C.char) C.responsePointer {
+func SetExtendedACL(clientID *C.char, v2Table *C.char) C.pointerResponse {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponsePointer()
+		return pointerResponseClientError()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	table, err := getTableFromV2(v2Table)
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	var prmContainerSetEACL neofsCli.PrmContainerSetEACL
 	prmContainerSetEACL.SetTable(*table)
@@ -178,26 +179,26 @@ func SetExtendedACL(clientID *C.char, v2Table *C.char) C.responsePointer {
 	resContainerSetEACL, err := cli.client.ContainerSetEACL(ctx, prmContainerSetEACL)
 	cli.mu.RUnlock()
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	if !apistatus.IsSuccessful(resContainerSetEACL.Status()) {
 		return resultStatusErrorResponsePointer()
 	}
 	boolean := []byte{1}
-	return newResponsePointer(reflect.TypeOf(boolean), boolean)
+	return pointerResponse(reflect.TypeOf(boolean), boolean)
 }
 
 //export GetExtendedACL
-func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.responsePointer {
+func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.pointerResponse {
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponsePointer()
+		return pointerResponseClientError()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	containerID, err := getContainerIDFromV2(v2ContainerID)
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	var prmContainerEACL neofsCli.PrmContainerEACL
 	prmContainerEACL.SetContainer(*containerID)
@@ -205,26 +206,26 @@ func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.responsePointer {
 	cnrResponse, err := cli.client.ContainerEACL(ctx, prmContainerEACL)
 	cli.mu.RUnlock()
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	if !apistatus.IsSuccessful(cnrResponse.Status()) {
 		return resultStatusErrorResponsePointer()
 	}
 	table := cnrResponse.Table()
-	containerJson, err := table.MarshalJSON()
+	tableBytes, err := cnrResponse.Table().Marshal()
 	if err != nil {
-		return errorResponsePointer("could not marshal container put response")
+		return pointerResponseError("could not marshal eacl table")
 	}
-	return newResponsePointer(reflect.TypeOf(table), containerJson)
+	return pointerResponse(reflect.TypeOf(table), tableBytes)
 }
 
 //export AnnounceUsedSpace
 func AnnounceUsedSpace(clientID *C.char, announcements *C.char) {}
 
-//func AnnounceUsedSpace(clientID *C.char, announcements *C.char) C.responsePointer {
+//func AnnounceUsedSpace(clientID *C.char, announcements *C.char) C.pointerResponse {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return clientErrorResponsePointer()
+//		return pointerResponseClientError()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
@@ -236,13 +237,13 @@ func AnnounceUsedSpace(clientID *C.char, announcements *C.char) {}
 //	resContainerAnnounceUsedSpace, err := cli.client.ContainerAnnounceUsedSpace(ctx, prmContainerAnnounceSpace)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return errorResponsePointer(err.Error())
+//		return pointerResponseError(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resContainerAnnounceUsedSpace.Status()) {
 //		return resultStatusErrorResponsePointer()
 //	}
 //	boolean := []byte{1}
-//	return newResponsePointer(reflect.TypeOf(boolean), boolean)
+//	return pointerResponse(reflect.TypeOf(boolean), boolean)
 //}
 
 //endregion container

@@ -234,10 +234,11 @@ func (clients *NeoFSClients) put(id uuid.UUID, newClient *neofsCli.Client) {
 	clients.mu.Unlock()
 }
 
-func (clients *NeoFSClients) delete(id uuid.UUID) {
+func (clients *NeoFSClients) delete(id uuid.UUID) bool {
 	clients.mu.Lock()
 	delete(clients.clients, id)
 	clients.mu.Unlock()
+	return true
 }
 
 var neofsClients *NeoFSClients
@@ -260,7 +261,7 @@ func getClient(clientID *C.char) (*NeoFSClient, error) {
 }
 
 //export CreateClient
-func CreateClient(key *C.char, neofsEndpoint *C.char) C.responsePointer {
+func CreateClient(key *C.char, neofsEndpoint *C.char) C.pointerResponse {
 	privateKey := getPrivateKey(key)
 	endpoint := C.GoString(neofsEndpoint)
 	newClient, err := neofsCli.New(
@@ -269,11 +270,11 @@ func CreateClient(key *C.char, neofsEndpoint *C.char) C.responsePointer {
 		neofsCli.WithNeoFSErrorParsing(),
 	)
 	if err != nil {
-		return errorResponsePointer(fmt.Errorf("cannot create neofs client: %w", err).Error())
+		return pointerResponseError(fmt.Errorf("cannot create neofs client: %w", err).Error())
 	}
 	u, err := uuid.NewUUID()
 	if err != nil {
-		return errorResponsePointer("cannot create uuid")
+		return pointerResponseError("cannot create uuid")
 	}
 
 	if neofsClients == nil {
@@ -281,52 +282,60 @@ func CreateClient(key *C.char, neofsEndpoint *C.char) C.responsePointer {
 	} else {
 		neofsClients.put(u, newClient)
 	}
-	return newResponsePointer(reflect.TypeOf(u), []byte(u.String()))
+	return pointerResponse(reflect.TypeOf(u), []byte(u.String()))
 }
 
 //export DeleteClient
-func DeleteClient(clientID *C.char) error {
+func DeleteClient(clientID *C.char) C.pointerResponse {
 	cliID, err := uuid.Parse(C.GoString(clientID))
 	if err != nil {
-		return fmt.Errorf("could not parse provided client id")
+		return pointerResponseError("could not parse provided client id")
 	}
-	neofsClients.delete(cliID)
-	return nil
+	deleted := neofsClients.delete(cliID)
+	if !deleted {
+		return pointerResponseError("could not delete client")
+	}
+	boolean := []byte{1}
+	return pointerResponse(reflect.TypeOf(boolean), boolean)
 }
 
 //endregion client
 //region C.response
 
 func resultStatusErrorResponse() C.response {
-	return errorResponse("result status not successful")
+	return responseError("result status not successful")
 }
 
-func resultStatusErrorResponsePointer() C.responsePointer {
-	return errorResponsePointer("result status not successful")
+func resultStatusErrorResponsePointer() C.pointerResponse {
+	return pointerResponseError("result status not successful")
 }
 
-func clientErrorResponse() C.response {
-	return errorResponse("could not get client")
+func responseClientError() C.response {
+	return responseError("could not get client")
 }
 
-func clientErrorResponsePointer() C.responsePointer {
-	return errorResponsePointer("could not get client")
+func pointerResponseClientError() C.pointerResponse {
+	return pointerResponseError("could not get client")
 }
 
-func errorResponse(errorMsg string) C.response {
-	return newResponse(reflect.TypeOf(new(error)), []byte(errorMsg))
+func responseError(errorMsg string) C.response {
+	return response(reflect.TypeOf(new(error)), errorMsg)
 }
 
-func errorResponsePointer(errorMsg string) C.responsePointer {
-	return newResponsePointer(reflect.TypeOf(new(error)), []byte(errorMsg))
+func pointerResponseError(errorMsg string) C.pointerResponse {
+	return pointerResponse(reflect.TypeOf(new(error)), []byte(errorMsg))
 }
 
-func newResponse(responseType reflect.Type, value []byte) C.response {
-	return C.response{C.CString(responseType.String()), (*C.char)(C.CBytes(value))}
+func response(responseType reflect.Type, value string) C.response {
+	return C.response{C.CString(responseType.String()), C.CString(value)}
 }
 
-func newResponsePointer(responseType reflect.Type, value []byte) C.responsePointer {
-	return C.responsePointer{C.CString(responseType.String()), C.int(len(value)), (*C.char)(C.CBytes(value))}
+func pointerResponse(responseType reflect.Type, value []byte) C.pointerResponse {
+	return C.pointerResponse{C.CString(responseType.String()), C.int(len(value)), (*C.char)(C.CBytes(value))}
+}
+
+func pointerResponseNil() C.pointerResponse {
+	return C.pointerResponse{C.CString(reflect.TypeOf(nil).String()), C.int(0), C.CString("")}
 }
 
 //type GoResponse struct {

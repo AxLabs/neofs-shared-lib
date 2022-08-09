@@ -32,10 +32,10 @@ GetRangeHash
 ////export GetObjectInit
 func GetObjectInit(clientID *C.char, v2ContainerID *C.char) {}
 
-//func GetObjectInit(clientID *C.char, v2ContainerID *C.char) *C.responsePointer {
+//func GetObjectInit(clientID *C.char, v2ContainerID *C.char) *C.pointerResponse {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return clientErrorResponsePointer()
+//		return pointerResponseClientError()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
@@ -43,7 +43,7 @@ func GetObjectInit(clientID *C.char, v2ContainerID *C.char) {}
 //	// Parse the container
 //	id, err := getContainerIDFromV2(v2ContainerID)
 //	if err != nil {
-//		return errorResponsePointer(err.Error())
+//		return pointerResponseError(err.Error())
 //	}
 //
 //	var prmObjectGet neofsCli.PrmObjectGet
@@ -72,13 +72,13 @@ func GetObjectInit(clientID *C.char, v2ContainerID *C.char) {}
 //	return C.CString() // return pointer to object reader and
 //}
 
-////export PutObjectInit
+//export PutObjectInit
 func PutObjectInit(clientID *C.char, key *C.char) {}
 
-//func PutObjectInit(clientID *C.char, key *C.char) *C.responsePointer {
+//func PutObjectInit(clientID *C.char, key *C.char) *C.pointerResponse {
 //	cli, err := getClient(key)
 //	if err != nil {
-//		return clientErrorResponsePointer()
+//		return pointerResponseClientError()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
@@ -89,42 +89,42 @@ func PutObjectInit(clientID *C.char, key *C.char) {}
 //	if err != nil {
 //		panic(err)
 //	}
-//	//objectWriter.UseKey()
-//	//objectWriter.MarkLocal() // optional
-//	//objectWriter.WithinSession()
-//	//objectWriter.WithBearerToken()
+//	objectWriter.UseKey()
+//	objectWriter.MarkLocal() // optional
+//	objectWriter.WithinSession()
+//	objectWriter.WithBearerToken()
 //	objectWriter.WritePayloadChunk()
-//	//objectWriter.WriteHeader()
-//	//objectWriter.Close() // in separate method or when all is read
+//	objectWriter.WriteHeader()
+//	objectWriter.Close() // in separate method or when all is read
 //
-//	return newResponsePointer()
+//	return pointerResponse()
 //}
 
 //export DeleteObject
 func DeleteObject(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char,
-	v2BearerToken *C.char) C.responsePointer {
+	v2BearerToken *C.char) C.pointerResponse {
 
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponsePointer()
+		return pointerResponseClientError()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	containerID, err := getContainerIDFromV2(v2ContainerID)
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	objectID, err := getObjectIDFromV2(v2ObjectID)
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	sessionToken, err := getSessionTokenFromV2(v2SessionToken)
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	bearerToken, err := getBearerTokenFromV2(v2BearerToken)
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	var prmObjectDelete neofsCli.PrmObjectDelete
 	prmObjectDelete.FromContainer(*containerID)
@@ -135,7 +135,7 @@ func DeleteObject(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v
 	resObjectDelete, err := cli.client.ObjectDelete(ctx, prmObjectDelete)
 	cli.mu.RUnlock()
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	if !apistatus.IsSuccessful(resObjectDelete.Status()) {
 		return resultStatusErrorResponsePointer()
@@ -143,40 +143,40 @@ func DeleteObject(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v
 	readTombStoneID := new(oid.ID)
 	tombstoneRead := resObjectDelete.ReadTombstoneID(readTombStoneID)
 	if !tombstoneRead {
-		return errorResponsePointer("could not read object's tombstone")
+		return pointerResponseError("could not read object's tombstone")
 	}
 	json, err := readTombStoneID.MarshalJSON()
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
-	return newResponsePointer(reflect.TypeOf(tombstoneRead), json)
+	return pointerResponse(reflect.TypeOf(tombstoneRead), json)
 }
 
 //export GetObjectHead
 func GetObjectHead(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char,
-	v2BearerToken *C.char) C.responsePointer {
+	v2BearerToken *C.char) C.pointerResponse {
 
 	cli, err := getClient(clientID)
 	if err != nil {
-		return clientErrorResponsePointer()
+		return pointerResponseClientError()
 	}
 	cli.mu.RLock()
 	ctx := context.Background()
 	containerID, err := getContainerIDFromV2(v2ContainerID)
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	objectID, err := getObjectIDFromV2(v2ObjectID)
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	sessionToken, err := getSessionTokenFromV2(v2SessionToken)
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	bearerToken, err := getBearerTokenFromV2(v2BearerToken)
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	var prmObjectHead neofsCli.PrmObjectHead
 	prmObjectHead.FromContainer(*containerID)
@@ -187,7 +187,7 @@ func GetObjectHead(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, 
 	resObjectHead, err := cli.client.ObjectHead(ctx, prmObjectHead)
 	cli.mu.RUnlock()
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
 	if !apistatus.IsSuccessful(resObjectHead.Status()) {
 		return resultStatusErrorResponsePointer()
@@ -196,9 +196,9 @@ func GetObjectHead(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, 
 	resObjectHead.ReadHeader(dst)
 	json, err := dst.MarshalJSON()
 	if err != nil {
-		return errorResponsePointer(err.Error())
+		return pointerResponseError(err.Error())
 	}
-	return newResponsePointer(reflect.TypeOf(dst), json)
+	return pointerResponse(reflect.TypeOf(dst), json)
 }
 
 //export SearchObject
@@ -208,26 +208,26 @@ func SearchObject(clientID *C.char, v2ContainerID *C.char, v2SessionToken *C.cha
 //func SearchObject(clientID *C.char, v2ContainerID *C.char, v2SessionToken *C.char, v2BearerToken *C.char, v2Filters *C.char) C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return clientErrorResponse()
+//		return responseClientError()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
 //
 //	containerID, err := getContainerIDFromV2(v2ContainerID)
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //	sessionToken, err := getSessionTokenFromV2(v2SessionToken)
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //	bearerToken, err := getBearerTokenFromV2(v2BearerToken)
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //	filters, err := getFiltersFromV2(v2Filters)
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //	var prmObjectSearch neofsCli.PrmObjectSearch
 //	prmObjectSearch.InContainer(*containerID)
@@ -239,7 +239,7 @@ func SearchObject(clientID *C.char, v2ContainerID *C.char, v2SessionToken *C.cha
 //	resObjectSearchInit, err := cli.client.ObjectSearchInit(ctx, prmObjectSearch)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //
 //	//resObjectSearchInit.UseKey()
@@ -247,39 +247,39 @@ func SearchObject(clientID *C.char, v2ContainerID *C.char, v2SessionToken *C.cha
 //	//resObjectSearchInit.Close()
 //
 //	read, b := resObjectSearchInit.Read()
-//	return newResponse("SearchObject", read)
+//	return response("SearchObject", read)
 //}
 
 //export GetRange
-func GetRange(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char, v2BearerToken *C.char, length *C.char,
-	offset *C.char) {
+func GetRange(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char,
+	v2BearerToken *C.char, offset *C.char, length *C.char) {
 }
 
-//func GetRange(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char, v2BearerToken *C.char, length *C.char,
-//	offset *C.char) C.response {
+//func GetRange(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char,
+//	v2BearerToken *C.char, offset *C.char, length *C.char) C.response {
 //
 //	cli, err := getClient(clientID)
 //	if err != nil {
-//		return clientErrorResponse()
+//		return responseClientError()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
 //
 //	containerID, err := getContainerIDFromV2(v2ContainerID)
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //	objectID, err := getObjectIDFromV2(v2ObjectID)
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //	sessionToken, err := getSessionTokenFromV2(v2SessionToken)
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //	bearerToken, err := getBearerTokenFromV2(v2BearerToken)
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //
 //	var prmObjectRange neofsCli.PrmObjectRange
@@ -293,11 +293,11 @@ func GetRange(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2Ses
 //	response, err := cli.client.ObjectRangeInit(ctx, prmObjectRange)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return errorResponse(err.Error())
+//		return responseError(err.Error())
 //	}
 //
 //	response.Read()
-//	return newResponse("GetRange", )
+//	return response("GetRange", )
 //}
 
 //export GetRangeHash

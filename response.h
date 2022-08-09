@@ -7,9 +7,4 @@ typedef struct {
     char *responseType;
     int length;
     char *value;
-}responsePointer;
-
-//typedef struct {
-//    int length;
-//    responseThree *values[];
-//}pointerArray;
+}pointerResponse;
