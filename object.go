@@ -9,14 +9,6 @@ package main
 #endif
 */
 import "C"
-import (
-	"context"
-	neofsCli "github.com/nspcc-dev/neofs-sdk-go/client"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"reflect"
-)
 
 /*
 ----Object----
@@ -30,8 +22,6 @@ GetRangeHash
 */
 
 ////export GetObjectInit
-func GetObjectInit(clientID *C.char, v2ContainerID *C.char) {}
-
 //func GetObjectInit(clientID *C.char, v2ContainerID *C.char) *C.pointerResponse {
 //	cli, err := getClient(clientID)
 //	if err != nil {
@@ -46,7 +36,7 @@ func GetObjectInit(clientID *C.char, v2ContainerID *C.char) {}
 //		return pointerResponseError(err.Error())
 //	}
 //
-//	var prmObjectGet neofsCli.PrmObjectGet
+//	var prmObjectGet neofsclient.PrmObjectGet
 //	prmObjectGet.FromContainer(*id) // required
 //	prmObjectGet.ByID()             // required
 //	//prmObjectGet.MarkLocal()        // optional, tells the server to execute operation locally
@@ -72,9 +62,7 @@ func GetObjectInit(clientID *C.char, v2ContainerID *C.char) {}
 //	return C.CString() // return pointer to object reader and
 //}
 
-//export PutObjectInit
-func PutObjectInit(clientID *C.char, key *C.char) {}
-
+////export PutObjectInit
 //func PutObjectInit(clientID *C.char, key *C.char) *C.pointerResponse {
 //	cli, err := getClient(key)
 //	if err != nil {
@@ -83,7 +71,7 @@ func PutObjectInit(clientID *C.char, key *C.char) {}
 //	cli.mu.RLock()
 //	ctx := context.Background()
 //
-//	var prmObjectPutInit neofsCli.PrmObjectPutInit
+//	var prmObjectPutInit neofsclient.PrmObjectPutInit
 //	objectWriter, err := cli.client.ObjectPutInit(ctx, prmObjectPutInit)
 //	cli.mu.RUnlock()
 //	if err != nil {
@@ -100,111 +88,108 @@ func PutObjectInit(clientID *C.char, key *C.char) {}
 //	return pointerResponse()
 //}
 
-//export DeleteObject
-func DeleteObject(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char,
-	v2BearerToken *C.char) C.pointerResponse {
+////export DeleteObject
+//func DeleteObject(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char,
+//	v2BearerToken *C.char) C.pointerResponse {
+//
+//	cli, err := getClient(clientID)
+//	if err != nil {
+//		return pointerResponseClientError()
+//	}
+//	cli.mu.RLock()
+//	ctx := context.Background()
+//	containerID, err := getContainerIDFromV2(v2ContainerID)
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	objectID, err := getObjectIDFromV2(v2ObjectID)
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	sessionToken, err := getSessionTokenFromV2(v2SessionToken)
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	bearerToken, err := getBearerTokenFromV2(v2BearerToken)
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	var prmObjectDelete neofsclient.PrmObjectDelete
+//	prmObjectDelete.FromContainer(*containerID)
+//	prmObjectDelete.ByID(*objectID)
+//	prmObjectDelete.WithinSession(*sessionToken)
+//	prmObjectDelete.WithBearerToken(*bearerToken)
+//
+//	resObjectDelete, err := cli.client.ObjectDelete(ctx, prmObjectDelete)
+//	cli.mu.RUnlock()
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	if !apistatus.IsSuccessful(resObjectDelete.Status()) {
+//		return resultStatusErrorResponsePointer()
+//	}
+//	readTombStoneID := new(oid.ID)
+//	tombstoneRead := resObjectDelete.ReadTombstoneID(readTombStoneID)
+//	if !tombstoneRead {
+//		return pointerResponseError("could not read object's tombstone")
+//	}
+//	json, err := readTombStoneID.MarshalJSON()
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	return pointerResponse(reflect.TypeOf(tombstoneRead), json)
+//}
 
-	cli, err := getClient(clientID)
-	if err != nil {
-		return pointerResponseClientError()
-	}
-	cli.mu.RLock()
-	ctx := context.Background()
-	containerID, err := getContainerIDFromV2(v2ContainerID)
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	objectID, err := getObjectIDFromV2(v2ObjectID)
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	sessionToken, err := getSessionTokenFromV2(v2SessionToken)
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	bearerToken, err := getBearerTokenFromV2(v2BearerToken)
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	var prmObjectDelete neofsCli.PrmObjectDelete
-	prmObjectDelete.FromContainer(*containerID)
-	prmObjectDelete.ByID(*objectID)
-	prmObjectDelete.WithinSession(*sessionToken)
-	prmObjectDelete.WithBearerToken(*bearerToken)
+////export GetObjectHead
+//func GetObjectHead(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char,
+//	v2BearerToken *C.char) C.pointerResponse {
+//
+//	cli, err := getClient(clientID)
+//	if err != nil {
+//		return pointerResponseClientError()
+//	}
+//	cli.mu.RLock()
+//	ctx := context.Background()
+//	containerID, err := getContainerIDFromV2(v2ContainerID)
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	objectID, err := getObjectIDFromV2(v2ObjectID)
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	sessionToken, err := getSessionTokenFromV2(v2SessionToken)
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	bearerToken, err := getBearerTokenFromV2(v2BearerToken)
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	var prmObjectHead neofsclient.PrmObjectHead
+//	prmObjectHead.FromContainer(*containerID)
+//	prmObjectHead.ByID(*objectID)
+//	prmObjectHead.WithinSession(*sessionToken)
+//	prmObjectHead.WithBearerToken(*bearerToken)
+//
+//	resObjectHead, err := cli.client.ObjectHead(ctx, prmObjectHead)
+//	cli.mu.RUnlock()
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	if !apistatus.IsSuccessful(resObjectHead.Status()) {
+//		return resultStatusErrorResponsePointer()
+//	}
+//	dst := new(object.Object)
+//	resObjectHead.ReadHeader(dst)
+//	json, err := dst.MarshalJSON()
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	return pointerResponse(reflect.TypeOf(dst), json)
+//}
 
-	resObjectDelete, err := cli.client.ObjectDelete(ctx, prmObjectDelete)
-	cli.mu.RUnlock()
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	if !apistatus.IsSuccessful(resObjectDelete.Status()) {
-		return resultStatusErrorResponsePointer()
-	}
-	readTombStoneID := new(oid.ID)
-	tombstoneRead := resObjectDelete.ReadTombstoneID(readTombStoneID)
-	if !tombstoneRead {
-		return pointerResponseError("could not read object's tombstone")
-	}
-	json, err := readTombStoneID.MarshalJSON()
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	return pointerResponse(reflect.TypeOf(tombstoneRead), json)
-}
-
-//export GetObjectHead
-func GetObjectHead(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char,
-	v2BearerToken *C.char) C.pointerResponse {
-
-	cli, err := getClient(clientID)
-	if err != nil {
-		return pointerResponseClientError()
-	}
-	cli.mu.RLock()
-	ctx := context.Background()
-	containerID, err := getContainerIDFromV2(v2ContainerID)
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	objectID, err := getObjectIDFromV2(v2ObjectID)
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	sessionToken, err := getSessionTokenFromV2(v2SessionToken)
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	bearerToken, err := getBearerTokenFromV2(v2BearerToken)
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	var prmObjectHead neofsCli.PrmObjectHead
-	prmObjectHead.FromContainer(*containerID)
-	prmObjectHead.ByID(*objectID)
-	prmObjectHead.WithinSession(*sessionToken)
-	prmObjectHead.WithBearerToken(*bearerToken)
-
-	resObjectHead, err := cli.client.ObjectHead(ctx, prmObjectHead)
-	cli.mu.RUnlock()
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	if !apistatus.IsSuccessful(resObjectHead.Status()) {
-		return resultStatusErrorResponsePointer()
-	}
-	dst := new(object.Object)
-	resObjectHead.ReadHeader(dst)
-	json, err := dst.MarshalJSON()
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	return pointerResponse(reflect.TypeOf(dst), json)
-}
-
-//export SearchObject
-func SearchObject(clientID *C.char, v2ContainerID *C.char, v2SessionToken *C.char, v2BearerToken *C.char, v2Filters *C.char) {
-}
-
+////export SearchObject
 //func SearchObject(clientID *C.char, v2ContainerID *C.char, v2SessionToken *C.char, v2BearerToken *C.char, v2Filters *C.char) C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
@@ -229,7 +214,7 @@ func SearchObject(clientID *C.char, v2ContainerID *C.char, v2SessionToken *C.cha
 //	if err != nil {
 //		return responseError(err.Error())
 //	}
-//	var prmObjectSearch neofsCli.PrmObjectSearch
+//	var prmObjectSearch neofsclient.PrmObjectSearch
 //	prmObjectSearch.InContainer(*containerID)
 //	prmObjectSearch.WithinSession(*sessionToken)
 //	prmObjectSearch.WithBearerToken(*bearerToken)
@@ -250,11 +235,7 @@ func SearchObject(clientID *C.char, v2ContainerID *C.char, v2SessionToken *C.cha
 //	return response("SearchObject", read)
 //}
 
-//export GetRange
-func GetRange(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char,
-	v2BearerToken *C.char, offset *C.char, length *C.char) {
-}
-
+////export GetRange
 //func GetRange(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2SessionToken *C.char,
 //	v2BearerToken *C.char, offset *C.char, length *C.char) C.response {
 //
@@ -282,7 +263,7 @@ func GetRange(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2Ses
 //		return responseError(err.Error())
 //	}
 //
-//	var prmObjectRange neofsCli.PrmObjectRange
+//	var prmObjectRange neofsclient.PrmObjectRange
 //	prmObjectRange.FromContainer(*containerID)
 //	prmObjectRange.ByID(*objectID)
 //	prmObjectRange.WithinSession(*sessionToken)
@@ -297,9 +278,9 @@ func GetRange(clientID *C.char, v2ContainerID *C.char, v2ObjectID *C.char, v2Ses
 //	}
 //
 //	response.Read()
-//	return response("GetRange", )
+//	return response("GetRange")
 //}
 
-//export GetRangeHash
-func GetRangeHash(clientID *C.char, v2ContainerID *C.char) {
-}
+////export GetRangeHash
+//func GetRangeHash(clientID *C.char, v2ContainerID *C.char) {
+//}

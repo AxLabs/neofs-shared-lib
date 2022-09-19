@@ -16,9 +16,7 @@ AnnounceLocalTrust
 AnnounceIntermediateResult
 */
 
-//export AnnounceLocalTrust
-func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) {}
-
+////export AnnounceLocalTrust
 //func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
@@ -47,10 +45,7 @@ func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) {}
 //	return response(reflect.TypeOf(boolean), boolean)
 //}
 
-//export AnnounceIntermediateResult
-func AnnounceIntermediateResult(clientID *C.char, v2P2PTrust *C.char, epoch *C.char, iteration *C.char) {
-}
-
+////export AnnounceIntermediateResult
 //func AnnounceIntermediateResult(clientID *C.char, v2P2PTrust *C.char, epoch *C.char, iteration *C.char) C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {

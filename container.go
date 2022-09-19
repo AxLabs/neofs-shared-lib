@@ -9,21 +9,6 @@ package main
 #endif
 */
 import "C"
-import (
-	"context"
-	"fmt"
-	"github.com/google/uuid"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	"github.com/nspcc-dev/neofs-sdk-go/acl"
-	neofsCli "github.com/nspcc-dev/neofs-sdk-go/client"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
-	"github.com/nspcc-dev/neofs-sdk-go/container"
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	"github.com/nspcc-dev/neofs-sdk-go/netmap"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
-	"reflect"
-)
 
 /*
 ----Container----
@@ -38,107 +23,111 @@ AnnounceUsedSpace
 
 //region container
 
-//export PutContainer
-func PutContainer(clientID *C.char, v2Container *C.char) C.response {
-	cli, err := getClient(clientID)
-	if err != nil {
-		return responseClientError()
-	}
-	cli.mu.RLock()
-	ctx := context.Background()
-	cnr, err := getContainerFromV2(v2Container)
-	if err != nil {
-		return responseError(err.Error())
-	}
-	// Overwrites potentially set container version
-	cnr.SetVersion(version.Current())
-	newUUID, err := uuid.NewRandom()
-	if err != nil {
-		return responseError(err.Error())
-	}
-	cnr.SetNonceUUID(newUUID)
+////export PutContainer
+//func PutContainer(clientID *C.char, v2Container *C.char) C.response {
+//	cli, err := getClient(clientID)
+//	if err != nil {
+//		return responseClientError()
+//	}
+//	cli.mu.RLock()
+//	ctx := context.Background()
+//	cnr, err := getContainerFromV2(v2Container)
+//	if err != nil {
+//		return responseError(err.Error())
+//	}
+//	// Overwrites potentially set container version
+//	cnr.SetVersion(version.Current())
+//	newUUID, err := uuid.NewRandom()
+//	if err != nil {
+//		return responseError(err.Error())
+//	}
+//	cnr.SetNonceUUID(newUUID)
+//
+//	// The following are expected to be set within the provided container parameter
+//	//  - placement policy
+//	//  - permissions
+//	//  - attributes
+//	var prmContainerPut neofsclient.PrmContainerPut
+//	prmContainerPut.SetContainer(*cnr)
+//
+//	resContainerPut, err := cli.client.ContainerPut(ctx, prmContainerPut)
+//	if err != nil {
+//		return responseError(err.Error())
+//	}
+//	if !apistatus.IsSuccessful(resContainerPut.Status()) {
+//		return resultStatusErrorResponse()
+//	}
+//	containerID := resContainerPut.ID()
+//	return response(reflect.TypeOf(containerID), containerID.String())
+//}
 
-	// The following are expected to be set within the provided container parameter
-	//  - placement policy
-	//  - permissions
-	//  - attributes
-	var prmContainerPut neofsCli.PrmContainerPut
-	prmContainerPut.SetContainer(*cnr)
+////export GetContainer
+//func GetContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
+//	cli, err := getClient(clientID)
+//	if err != nil {
+//		return pointerResponseClientError()
+//	}
+//	fmt.Println("start locking")
+//	cli.mu.RLock() // Write Lock causes to run extremely long >36min and no progress!
+//	fmt.Println("locked")
+//	ctx := context.Background()
+//	id := cid.New()
+//	err = id.Parse(C.GoString(containerID))
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	fmt.Printf("id shared-lib: " + id.String())
+//	var prmContainerGet neofsclient.PrmContainerGet
+//	prmContainerGet.SetContainer(*id)
+//
+//	resContainerGet, err := cli.client.ContainerGet(ctx, prmContainerGet)
+//	fmt.Println("start unlocking")
+//	cli.mu.RUnlock()
+//	fmt.Println("unlocked")
+//
+//	if err != nil {
+//		fmt.Println("ContainerGet error")
+//		return pointerResponseError(err.Error())
+//	}
+//	if !apistatus.IsSuccessful(resContainerGet.Status()) {
+//		return resultStatusErrorResponsePointer()
+//	}
+//	ctr := resContainerGet.Container()
+//	container, err := ctr.Marshal()
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	return pointerResponse(reflect.TypeOf(ctr), container)
+//}
 
-	resContainerPut, err := cli.client.ContainerPut(ctx, prmContainerPut)
-	if err != nil {
-		return responseError(err.Error())
-	}
-	if !apistatus.IsSuccessful(resContainerPut.Status()) {
-		return resultStatusErrorResponse()
-	}
-	containerID := resContainerPut.ID()
-	return response(reflect.TypeOf(containerID), containerID.String())
-}
+////export DeleteContainer
+//func DeleteContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
+//	cli, err := getClient(clientID)
+//	if err != nil {
+//		return pointerResponseClientError()
+//	}
+//	cli.mu.RLock()
+//	ctx := context.Background()
+//	id := cid.New()
+//	err = id.Parse(C.GoString(containerID))
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	var prmContainerDelete neofsclient.PrmContainerDelete
+//	prmContainerDelete.SetContainer(*id)
+//
+//	resContainerDelete, err := cli.client.ContainerDelete(ctx, prmContainerDelete)
+//	if err != nil {
+//		pointerResponseError(err.Error())
+//	}
+//
+//	if !apistatus.IsSuccessful(resContainerDelete.Status()) {
+//		return resultStatusErrorResponsePointer()
+//	}
+//	return pointerResponseNil()
+//}
 
-//export GetContainer
-func GetContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
-	cli, err := getClient(clientID)
-	if err != nil {
-		return pointerResponseClientError()
-	}
-	cli.mu.RLock()
-	ctx := context.Background()
-	id := cid.New()
-	err = id.Parse(C.GoString(containerID))
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	var prmContainerGet neofsCli.PrmContainerGet
-	prmContainerGet.SetContainer(*id)
-
-	resContainerGet, err := cli.client.ContainerGet(ctx, prmContainerGet)
-	cli.mu.RUnlock()
-
-	if err != nil {
-		return pointerResponseError("could not get container")
-	}
-	if !apistatus.IsSuccessful(resContainerGet.Status()) {
-		return resultStatusErrorResponsePointer()
-	}
-	ctr := resContainerGet.Container()
-	container, err := ctr.Marshal()
-	if err != nil {
-		return pointerResponseError("could not marshal container put response")
-	}
-	return pointerResponse(reflect.TypeOf(ctr), container)
-}
-
-//export DeleteContainer
-func DeleteContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
-	cli, err := getClient(clientID)
-	if err != nil {
-		return pointerResponseClientError()
-	}
-	cli.mu.RLock()
-	ctx := context.Background()
-	id := cid.New()
-	err = id.Parse(C.GoString(containerID))
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	var prmContainerDelete neofsCli.PrmContainerDelete
-	prmContainerDelete.SetContainer(*id)
-
-	resContainerDelete, err := cli.client.ContainerDelete(ctx, prmContainerDelete)
-	if err != nil {
-		pointerResponseError(err.Error())
-	}
-
-	if !apistatus.IsSuccessful(resContainerDelete.Status()) {
-		return resultStatusErrorResponsePointer()
-	}
-	return pointerResponseNil()
-}
-
-//export ListContainer
-func ListContainer(clientID *C.char, ownerPubKey *C.char) {}
-
+////export ListContainer
 //func ListContainer(clientID *C.char, ownerPubKey *C.char) *C.response {
 //	cli, err := getClient(clientID)
 //	if err != nil {
@@ -146,7 +135,7 @@ func ListContainer(clientID *C.char, ownerPubKey *C.char) {}
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
-//	var prmContainerList neofsCli.PrmContainerList
+//	var prmContainerList neofsclient.PrmContainerList
 //	prmContainerList.SetAccount(getOwnerID(ownerPubKey))
 //
 //	resContainerList, err := cli.client.ContainerList(ctx, prmContainerList)
@@ -161,67 +150,65 @@ func ListContainer(clientID *C.char, ownerPubKey *C.char) {}
 //	return response("ContainerList", containerIDs[0]) // how return []cid.ID
 //}
 
-//export SetExtendedACL
-func SetExtendedACL(clientID *C.char, v2Table *C.char) C.pointerResponse {
-	cli, err := getClient(clientID)
-	if err != nil {
-		return pointerResponseClientError()
-	}
-	cli.mu.RLock()
-	ctx := context.Background()
-	table, err := getTableFromV2(v2Table)
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	var prmContainerSetEACL neofsCli.PrmContainerSetEACL
-	prmContainerSetEACL.SetTable(*table)
+////export SetExtendedACL
+//func SetExtendedACL(clientID *C.char, v2Table *C.char) C.pointerResponse {
+//	cli, err := getClient(clientID)
+//	if err != nil {
+//		return pointerResponseClientError()
+//	}
+//	cli.mu.RLock()
+//	ctx := context.Background()
+//	table, err := getTableFromV2(v2Table)
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	var prmContainerSetEACL neofsclient.PrmContainerSetEACL
+//	prmContainerSetEACL.SetTable(*table)
+//
+//	resContainerSetEACL, err := cli.client.ContainerSetEACL(ctx, prmContainerSetEACL)
+//	cli.mu.RUnlock()
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	if !apistatus.IsSuccessful(resContainerSetEACL.Status()) {
+//		return resultStatusErrorResponsePointer()
+//	}
+//	boolean := []byte{1}
+//	return pointerResponse(reflect.TypeOf(boolean), boolean)
+//}
 
-	resContainerSetEACL, err := cli.client.ContainerSetEACL(ctx, prmContainerSetEACL)
-	cli.mu.RUnlock()
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	if !apistatus.IsSuccessful(resContainerSetEACL.Status()) {
-		return resultStatusErrorResponsePointer()
-	}
-	boolean := []byte{1}
-	return pointerResponse(reflect.TypeOf(boolean), boolean)
-}
+////export GetExtendedACL
+//func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.pointerResponse {
+//	cli, err := getClient(clientID)
+//	if err != nil {
+//		return pointerResponseClientError()
+//	}
+//	cli.mu.RLock()
+//	ctx := context.Background()
+//	containerID, err := getContainerIDFromV2(v2ContainerID)
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	var prmContainerEACL neofsclient.PrmContainerEACL
+//	prmContainerEACL.SetContainer(*containerID)
+//
+//	cnrResponse, err := cli.client.ContainerEACL(ctx, prmContainerEACL)
+//	cli.mu.RUnlock()
+//	if err != nil {
+//		return pointerResponseError(err.Error())
+//	}
+//	if !apistatus.IsSuccessful(cnrResponse.Status()) {
+//		return resultStatusErrorResponsePointer()
+//	}
+//	table := cnrResponse.Table()
+//	tableBytes, err := cnrResponse.Table().Marshal()
+//	if err != nil {
+//		return pointerResponseError("could not marshal eacl table")
+//	}
+//	return pointerResponse(reflect.TypeOf(table), tableBytes)
+//}
 
-//export GetExtendedACL
-func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.pointerResponse {
-	cli, err := getClient(clientID)
-	if err != nil {
-		return pointerResponseClientError()
-	}
-	cli.mu.RLock()
-	ctx := context.Background()
-	containerID, err := getContainerIDFromV2(v2ContainerID)
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	var prmContainerEACL neofsCli.PrmContainerEACL
-	prmContainerEACL.SetContainer(*containerID)
-
-	cnrResponse, err := cli.client.ContainerEACL(ctx, prmContainerEACL)
-	cli.mu.RUnlock()
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	if !apistatus.IsSuccessful(cnrResponse.Status()) {
-		return resultStatusErrorResponsePointer()
-	}
-	table := cnrResponse.Table()
-	tableBytes, err := cnrResponse.Table().Marshal()
-	if err != nil {
-		return pointerResponseError("could not marshal eacl table")
-	}
-	return pointerResponse(reflect.TypeOf(table), tableBytes)
-}
-
-//export AnnounceUsedSpace
-func AnnounceUsedSpace(clientID *C.char, announcements *C.char) {}
-
+////export AnnounceUsedSpace
 //func AnnounceUsedSpace(clientID *C.char, announcements *C.char) C.pointerResponse {
 //	cli, err := getClient(clientID)
 //	if err != nil {
@@ -231,7 +218,7 @@ func AnnounceUsedSpace(clientID *C.char, announcements *C.char) {}
 //	ctx := context.Background()
 //	ann := getAnnouncementsFromV2(announcements)
 //
-//	var prmContainerAnnounceSpace neofsCli.PrmAnnounceSpace
+//	var prmContainerAnnounceSpace neofsclient.PrmAnnounceSpace
 //	prmContainerAnnounceSpace.SetValues(ann)
 //
 //	resContainerAnnounceUsedSpace, err := cli.client.ContainerAnnounceUsedSpace(ctx, prmContainerAnnounceSpace)
@@ -249,85 +236,85 @@ func AnnounceUsedSpace(clientID *C.char, announcements *C.char) {}
 //endregion container
 //region helper
 
-func getContainerFromV2(v2Container *C.char) (*container.Container, error) {
-	sdkContainer := new(container.Container)
-	str := C.GoString(v2Container)
-	err := sdkContainer.UnmarshalJSON([]byte(str))
-	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal container")
-	}
-	return sdkContainer, nil
-}
+//func getContainerFromV2(v2Container *C.char) (*container.Container, error) {
+//	sdkContainer := new(container.Container)
+//	str := C.GoString(v2Container)
+//	err := sdkContainer.UnmarshalJSON([]byte(str))
+//	if err != nil {
+//		return nil, fmt.Errorf("could not unmarshal container")
+//	}
+//	return sdkContainer, nil
+//}
 
-func getContainerIDFromV2(containerID *C.char) (*cid.ID, error) {
-	id := new(cid.ID)
-	err := id.UnmarshalJSON([]byte(C.GoString(containerID)))
-	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal container id")
-	}
-	return id, nil
-}
+//func getContainerIDFromV2(containerID *C.char) (*cid.ID, error) {
+//	id := new(cid.ID)
+//	err := id.UnmarshalJSON([]byte(C.GoString(containerID)))
+//	if err != nil {
+//		return nil, fmt.Errorf("could not unmarshal container id")
+//	}
+//	return id, nil
+//}
 
 //endregion helper
 //region container old
 
-//export PutContainerBasic
-func PutContainerBasic(key *C.char) *C.char {
-	TESTNET := "grpcs://st01.testnet.fs.neo.org:8082"
-	// create client from parameter
-	//ctx := context.TODO()
-	ctx := context.Background()
-	//walletCli, err := client.New(ctx, "http://seed1t4.neo.org:2332", client.Options{}) // get Neo endpoint from parameter
-	//if err != nil {
-	//	return fmt.Errorf("can't create wallet client: %w", err)
-	//}
-
-	privateKey := keys.PrivateKey{PrivateKey: *getECDSAPrivKey(key)}
-	ownerAcc := wallet.NewAccountFromPrivateKey(&privateKey)
-	fsCli, err := neofsCli.New(
-		neofsCli.WithDefaultPrivateKey(&privateKey.PrivateKey),
-		neofsCli.WithURIAddress(TESTNET, nil), // get NeoFS endpoint from parameter
-		neofsCli.WithNeoFSErrorParsing(),
-	)
-	if err != nil {
-		panic(fmt.Errorf("can't create neofs client: %w", err))
-	}
-
-	//	create container from parameter
-	//	required:
-	//	o	create placement policy
-	//	x	access to private key
-	//	o	set permissions
-	//	o	neofs client
-
-	ownerID := getOwnerIDFromAccount(ownerAcc)
-
-	placementPolicy := netmap.NewPlacementPolicy() // get placement policy from string
-
-	permissions := acl.PublicBasicRule
-	//acl.ParseBasicACL(aclString) // get acl from string argument
-
-	cnr := container.New(
-		container.WithPolicy(placementPolicy),
-		container.WithOwnerID(ownerID),
-		container.WithCustomBasicACL(permissions),
-	)
-
-	//attributes := container.Attributes{} // get attributes from string argument
-	//cnr.SetAttributes(attributes)
-
-	var prmContainerPut neofsCli.PrmContainerPut
-	prmContainerPut.SetContainer(*cnr)
-
-	cnrResponse, err := fsCli.ContainerPut(ctx, prmContainerPut)
-	if err != nil {
-		panic(err)
-	}
-
-	containerID := cnrResponse.ID().String()
-	cstr := C.CString(containerID)
-	return cstr
-}
+////export PutContainerBasic
+//func PutContainerBasic(key *C.char) *C.char {
+//	TESTNET := "grpcs://st01.testnet.fs.neo.org:8082"
+//	// create client from parameter
+//	//ctx := context.TODO()
+//	ctx := context.Background()
+//	//walletCli, err := client.New(ctx, "http://seed1t4.neo.org:2332", client.Options{}) // get Neo endpoint from parameter
+//	//if err != nil {
+//	//	return fmt.Errorf("can't create wallet client: %w", err)
+//	//}
+//
+//	privateKey := keys.PrivateKey{PrivateKey: *getECDSAPrivKey(key)}
+//	ownerAcc := wallet.NewAccountFromPrivateKey(&privateKey)
+//	fsCli, err := neofsclient.New(
+//		neofsclient.WithDefaultPrivateKey(&privateKey.PrivateKey),
+//		neofsclient.WithURIAddress(TESTNET, nil), // get NeoFS endpoint from parameter
+//		neofsclient.WithNeoFSErrorParsing(),
+//	)
+//	if err != nil {
+//		panic(fmt.Errorf("can't create neofs client: %w", err))
+//	}
+//
+//	//	create container from parameter
+//	//	required:
+//	//	o	create placement policy
+//	//	x	access to private key
+//	//	o	set permissions
+//	//	o	neofs client
+//
+//	ownerID := getOwnerIDFromAccount(ownerAcc)
+//
+//	placementPolicy := netmap.NewPlacementPolicy() // get placement policy from string
+//
+//	permissions := acl.PublicBasicRule
+//	//acl.ParseBasicACL(aclString) // get acl from string argument
+//
+//	cnr := container.New(
+//		container.WithPolicy(placementPolicy),
+//		container.WithOwnerID(ownerID),
+//		container.WithCustomBasicACL(permissions),
+//	)
+//
+//	//attributes := container.Attributes{} // get attributes from string argument
+//	//cnr.SetAttributes(attributes)
+//
+//	var prmContainerPut neofsclient.PrmContainerPut
+//	prmContainerPut.SetContainer(*cnr)
+//
+//	cnrResponse, err := fsCli.ContainerPut(ctx, prmContainerPut)
+//	if err != nil {
+//		panic(err)
+//	}
+//
+//	containerID := cnrResponse.ID().String()
+//	cstr := C.CString(containerID)
+//	return cstr
+//}
 
 // old code
 ////export NewContainerPutRequest
