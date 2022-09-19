@@ -12,9 +12,9 @@ import "C"
 import (
 	"context"
 	"encoding/json"
-	v2Netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	v2Refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
-	neofsCli "github.com/nspcc-dev/neofs-sdk-go/client"
+	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
+	neofsclient "github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"reflect"
 )
@@ -27,50 +27,55 @@ EndpointInfo
 
 //export GetEndpoint
 func GetEndpoint(clientID *C.char) C.pointerResponse {
-	cli, err := getClient(clientID)
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	cli.mu.RLock()
 	ctx := context.Background()
-	var prmEndpointInfo neofsCli.PrmEndpointInfo
-	resEndpointInfo, err := cli.client.EndpointInfo(ctx, prmEndpointInfo)
-	cli.mu.RUnlock()
+	var prmEndpointInfo neofsclient.PrmEndpointInfo
+
+	neofsClient, err := getClient(clientID)
 	if err != nil {
 		return pointerResponseError(err.Error())
 	}
-	status := resEndpointInfo.Status()
-	if !apistatus.IsSuccessful(status) {
-		return resultStatusErrorResponsePointer()
-	}
-	latestVersion := resEndpointInfo.LatestVersion()
-	if latestVersion == nil {
-		return pointerResponseError(err.Error())
-	}
-	nodeInfo := resEndpointInfo.NodeInfo()
-	if nodeInfo == nil {
-		return pointerResponseError(err.Error())
-	}
-	nodeInfoJson, err := nodeInfo.MarshalJSON()
-	if err != nil {
-		return pointerResponseError(err.Error())
-	}
-	var v2 v2Refs.Version
-	latestVersion.WriteToV2(&v2)
-	latestVersionJson, err := v2.MarshalJSON()
+	neofsClient.mu.RLock()
+	resEndpointInfo, err := neofsClient.client.EndpointInfo(ctx, prmEndpointInfo)
+	neofsClient.mu.RUnlock()
 	if err != nil {
 		return pointerResponseError(err.Error())
 	}
 
+	status := resEndpointInfo.Status()
+	if !apistatus.IsSuccessful(status) {
+		return resultStatusErrorResponsePointer()
+	}
+
+	bytes, err := buildEndpointResponse(resEndpointInfo)
+	if err != nil {
+		return pointerResponseError(err.Error())
+	}
+	return pointerResponse(reflect.TypeOf(neofsclient.ResEndpointInfo{}), bytes)
+}
+
+func buildEndpointResponse(resEndpointInfo *neofsclient.ResEndpointInfo) ([]byte, error) {
+	latestVersion := resEndpointInfo.LatestVersion()
+	nodeInfo := resEndpointInfo.NodeInfo()
+	nodeInfoJson, err := nodeInfo.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+
+	var v2 v2refs.Version
+	latestVersion.WriteToV2(&v2)
+	latestVersionJson, err := v2.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
 	endpointResponse := EndpointResponse{
 		NodeInfo:      string(nodeInfoJson),
 		LatestVersion: string(latestVersionJson),
 	}
 	bytes, err := json.Marshal(endpointResponse)
 	if err != nil {
-		return pointerResponseError(err.Error())
+		return nil, err
 	}
-	return pointerResponse(reflect.TypeOf(endpointResponse), bytes)
+	return bytes, nil
 }
 
 type EndpointResponse struct {
@@ -80,18 +85,21 @@ type EndpointResponse struct {
 
 //export GetNetworkInfo
 func GetNetworkInfo(clientID *C.char) C.pointerResponse {
-	cli, err := getClient(clientID)
+	ctx := context.Background()
+	var prmNetworkInfo neofsclient.PrmNetworkInfo
+	//prmNetworkInfo.WithXHeaders()
+
+	neofsClient, err := getClient(clientID)
 	if err != nil {
 		return pointerResponseError(err.Error())
 	}
-	cli.mu.RLock()
-	ctx := context.Background()
-	var prmNetworkInfo neofsCli.PrmNetworkInfo
-	resNetworkInfo, err := cli.client.NetworkInfo(ctx, prmNetworkInfo)
-	cli.mu.RUnlock()
+	neofsClient.mu.Lock()
+	resNetworkInfo, err := neofsClient.client.NetworkInfo(ctx, prmNetworkInfo)
+	neofsClient.mu.Unlock()
 	if err != nil {
-		return pointerResponseError("could not get endpoint info")
+		return pointerResponseError(err.Error())
 	}
+
 	status := resNetworkInfo.Status()
 	if !apistatus.IsSuccessful(status) {
 		return resultStatusErrorResponsePointer()
@@ -100,12 +108,10 @@ func GetNetworkInfo(clientID *C.char) C.pointerResponse {
 	if info == nil {
 		return pointerResponseError("could not get network info of endpoint")
 	}
-	var v2 v2Netmap.NetworkInfo
+
+	var v2 v2netmap.NetworkInfo
 	info.WriteToV2(&v2)
 	bytes := v2.StableMarshal(nil)
 
-	if err != nil {
-		return pointerResponseError("could not marshal network info of endpoint")
-	}
 	return pointerResponse(reflect.TypeOf(*info), bytes)
 }
