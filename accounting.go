@@ -27,19 +27,19 @@ Balance
 
 //export GetBalance
 func GetBalance(clientID *C.char, publicKey *C.char) C.pointerResponse {
+	ctx := context.Background()
+
+	var prmBalanceGet neofsclient.PrmBalanceGet
+	id, err := userIDFromPublicKey(publicKey)
+	prmBalanceGet.SetAccount(*id)
+
 	neofsClient, err := getClient(clientID)
 	if err != nil {
 		return pointerResponseClientError()
 	}
 	neofsClient.mu.Lock()
-	var prmBalanceGet neofsclient.PrmBalanceGet
-	id, err := userIDFromPublicKey(publicKey)
-	prmBalanceGet.SetAccount(*id)
-
-	ctx := context.Background()
 	resBalanceGet, err := neofsClient.client.BalanceGet(ctx, prmBalanceGet)
 	neofsClient.mu.Unlock()
-
 	if err != nil {
 		return pointerResponseError(err.Error())
 	}
@@ -48,14 +48,16 @@ func GetBalance(clientID *C.char, publicKey *C.char) C.pointerResponse {
 	if !apistatus.IsSuccessful(resStatus) {
 		return resultStatusErrorResponsePointer()
 	}
+
 	amount := resBalanceGet.Amount()
 	if amount == nil {
 		return pointerResponseError(err.Error())
 	}
+
 	var v2 v2accounting.Decimal
 	amount.WriteToV2(&v2)
 	bytes := v2.StableMarshal(nil)
-	return pointerResponse(reflect.TypeOf(err), bytes)
+	return pointerResponse(reflect.TypeOf(v2), bytes)
 }
 
 func userIDFromPublicKey(publicKey *C.char) (*user.ID, error) {
