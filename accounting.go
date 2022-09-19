@@ -11,8 +11,12 @@ package main
 import "C"
 import (
 	"context"
-	neofsCli "github.com/nspcc-dev/neofs-sdk-go/client"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
+	neofsclient "github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"reflect"
 )
 
@@ -23,32 +27,47 @@ Balance
 
 //export GetBalance
 func GetBalance(clientID *C.char, publicKey *C.char) C.pointerResponse {
-	cli, err := getClient(clientID)
+	neofsClient, err := getClient(clientID)
+	if err != nil {
+		return pointerResponseClientError()
+	}
+	neofsClient.mu.Lock()
+	var prmBalanceGet neofsclient.PrmBalanceGet
+	id, err := userIDFromPublicKey(publicKey)
+	prmBalanceGet.SetAccount(*id)
+
+	ctx := context.Background()
+	resBalanceGet, err := neofsClient.client.BalanceGet(ctx, prmBalanceGet)
+	neofsClient.mu.Unlock()
+
 	if err != nil {
 		return pointerResponseError(err.Error())
 	}
-	cli.mu.RLock()
-	var prmBalanceGet neofsCli.PrmBalanceGet
-	ownerID := getOwnerID(getPubKey(publicKey))
-	prmBalanceGet.SetAccount(ownerID)
-	ctx := context.Background()
-	resBalanceGet, err := cli.client.BalanceGet(ctx, prmBalanceGet)
-	cli.mu.RUnlock()
 
-	if err != nil {
-		return pointerResponseError("could not get endpoint info")
-	}
-	status := resBalanceGet.Status()
-	if !apistatus.IsSuccessful(status) {
+	resStatus := resBalanceGet.Status()
+	if !apistatus.IsSuccessful(resStatus) {
 		return resultStatusErrorResponsePointer()
 	}
 	amount := resBalanceGet.Amount()
 	if amount == nil {
-		return pointerResponseError("could not get balance")
+		return pointerResponseError(err.Error())
 	}
-	bytes, err := amount.Marshal()
+	var v2 v2accounting.Decimal
+	amount.WriteToV2(&v2)
+	bytes := v2.StableMarshal(nil)
+	return pointerResponse(reflect.TypeOf(err), bytes)
+}
+
+func userIDFromPublicKey(publicKey *C.char) (*user.ID, error) {
+	pubKey, err := keys.NewPublicKeyFromString(C.GoString(publicKey))
 	if err != nil {
-		return pointerResponseError("could not marshal balance amount")
+		return nil, err
 	}
-	return pointerResponse(reflect.TypeOf(amount), bytes)
+	var id user.ID
+	uint160, err := address.StringToUint160(pubKey.Address())
+	if err != nil {
+		return nil, err
+	}
+	id.SetScriptHash(uint160)
+	return &id, nil
 }

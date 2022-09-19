@@ -18,22 +18,21 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/message"
-	"github.com/nspcc-dev/neofs-api-go/v2/signature"
-	neofsCli "github.com/nspcc-dev/neofs-sdk-go/client"
-	"github.com/nspcc-dev/neofs-sdk-go/eacl"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
-	"github.com/nspcc-dev/neofs-sdk-go/reputation"
-	"github.com/nspcc-dev/neofs-sdk-go/session"
-	"github.com/nspcc-dev/neofs-sdk-go/token"
+	v2rpcmessage "github.com/nspcc-dev/neofs-api-go/v2/rpc/message"
+	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
+	neofsclient "github.com/nspcc-dev/neofs-sdk-go/client"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"math/big"
 	"reflect"
 	"sync"
 )
+
+//import (
+//	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+//	"github.com/nspcc-dev/neo-go/pkg/wallet"
+//)
 
 func main() {
 
@@ -63,12 +62,12 @@ func main() {
 
 	_ = pr.FromGRPCMessage(m)
 
-	err = signature.SignServiceMessage(priv, pr)
+	err = v2signature.SignServiceMessage(priv, pr)
 	if err != nil {
 		fmt.Errorf(err.Error())
 	}
 
-	jsonAfter, err := message.MarshalJSON(pr)
+	jsonAfter, err := v2rpcmessage.MarshalJSON(pr)
 	if err != nil {
 		fmt.Errorf(err.Error())
 	}
@@ -77,12 +76,16 @@ func main() {
 
 }
 
-func getOwnerIDFromAccount(acc *wallet.Account) *owner.ID {
-	return owner.NewIDFromN3Account(acc)
+func getOwnerIDFromAccount(acc *wallet.Account) user.ID {
+	owner := user.ID{}
+	owner.SetScriptHash(acc.PrivateKey().PublicKey().GetScriptHash())
+	return owner
 }
 
-func getOwnerIDFromPublicKey(pubKey *ecdsa.PublicKey) *owner.ID {
-	return owner.NewIDFromPublicKey(pubKey)
+func getOwnerIDFromPublicKey(pubKey *ecdsa.PublicKey) user.ID {
+	owner := user.ID{}
+	user.IDFromKey(&owner, *pubKey)
+	return owner
 }
 
 func getPrivateKey(key *C.char) *keys.PrivateKey {
@@ -91,8 +94,7 @@ func getPrivateKey(key *C.char) *keys.PrivateKey {
 
 func getECDSAPrivKey(key *C.char) *ecdsa.PrivateKey {
 	keyStr := C.GoString(key)
-	bytes, err := hex.DecodeString(keyStr)
-	die(err)
+	bytes, _ := hex.DecodeString(keyStr)
 	k := new(big.Int)
 	k.SetBytes(bytes)
 	priv := new(ecdsa.PrivateKey)
@@ -103,40 +105,40 @@ func getECDSAPrivKey(key *C.char) *ecdsa.PrivateKey {
 	return priv
 }
 
-func die(err error) {
-	if err != nil {
-		panic(err)
-	}
-}
-
+//func die(err error) {
+//	if err != nil {
+//		panic(err)
+//	}
+//}
+//
 //region parse from v2
 
-func getObjectIDFromV2(objectID *C.char) (*oid.ID, error) {
-	id := new(oid.ID)
-	err := id.UnmarshalJSON([]byte(C.GoString(objectID)))
-	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal object id")
-	}
-	return id, nil
-}
-
-func getSessionTokenFromV2(sessionToken *C.char) (*session.Token, error) {
-	token := new(session.Token)
-	err := token.Unmarshal([]byte(C.GoString(sessionToken)))
-	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal session token")
-	}
-	return token, nil
-}
-
-func getBearerTokenFromV2(bearerToken *C.char) (*token.BearerToken, error) {
-	token := new(token.BearerToken)
-	err := token.Unmarshal([]byte(C.GoString(bearerToken)))
-	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal bearer token")
-	}
-	return token, nil
-}
+//func getObjectIDFromV2(objectID *C.char) (*oid.ID, error) {
+//	id := new(oid.ID)
+//	err := id.UnmarshalJSON([]byte(C.GoString(objectID)))
+//	if err != nil {
+//		return nil, fmt.Errorf("could not unmarshal object id")
+//	}
+//	return id, nil
+//}
+//
+//func getSessionTokenFromV2(sessionToken *C.char) (*session.Token, error) {
+//	token := new(session.Token)
+//	err := token.Unmarshal([]byte(C.GoString(sessionToken)))
+//	if err != nil {
+//		return nil, fmt.Errorf("could not unmarshal session token")
+//	}
+//	return token, nil
+//}
+//
+//func getBearerTokenFromV2(bearerToken *C.char) (*token.BearerToken, error) {
+//	token := new(token.BearerToken)
+//	err := token.Unmarshal([]byte(C.GoString(bearerToken)))
+//	if err != nil {
+//		return nil, fmt.Errorf("could not unmarshal bearer token")
+//	}
+//	return token, nil
+//}
 
 //func getTrustsFromV2(trust *C.char) (*[]reputation.Trust, error) {
 //	t := new(reputation.Trust)
@@ -146,46 +148,46 @@ func getBearerTokenFromV2(bearerToken *C.char) (*token.BearerToken, error) {
 //	}
 //	return t, nil
 //}
-
-func getPeerToPeerTrustFromV2(p2pTrust *C.char) (*reputation.PeerToPeerTrust, error) {
-	t := new(reputation.PeerToPeerTrust)
-	err := t.UnmarshalJSON([]byte(C.GoString(p2pTrust)))
-	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal peer to peer reputation trust")
-	}
-	return t, nil
-}
-
-//func getEpoch(epoch *C.char) uint64 {
-//	return uint64(epoch)
+//
+//func getPeerToPeerTrustFromV2(p2pTrust *C.char) (*reputation.PeerToPeerTrust, error) {
+//	t := new(reputation.PeerToPeerTrust)
+//	err := t.UnmarshalJSON([]byte(C.GoString(p2pTrust)))
+//	if err != nil {
+//		return nil, fmt.Errorf("could not unmarshal peer to peer reputation trust")
+//	}
+//	return t, nil
 //}
-
-//func getIteration(iteration *C.char) uint32 {
-//	return uint32(iteration)
+//
+////func getEpoch(epoch *C.char) uint64 {
+////	return uint64(epoch)
+////}
+//
+////func getIteration(iteration *C.char) uint32 {
+////	return uint32(iteration)
+////}
+//
+////func getSessionExpirationFromV2(expiration *C.ulong) uint64 {
+////	return uint64(expiration)
+////}
+//
+//func getFiltersFromV2(filters *C.char) (*object.SearchFilters, error) {
+//	sfs := new(object.SearchFilters)
+//	err := sfs.UnmarshalJSON([]byte(C.GoString(filters)))
+//	if err != nil {
+//		return nil, fmt.Errorf("could not unmarshal search filters")
+//	}
+//	return sfs, nil
 //}
-
-//func getSessionExpirationFromV2(expiration *C.ulong) uint64 {
-//	return uint64(expiration)
+//
+//func getTableFromV2(table *C.char) (*eacl.Table, error) {
+//	tab := new(eacl.Table)
+//	err := tab.Unmarshal([]byte(C.GoString(table)))
+//	if err != nil {
+//		return nil, fmt.Errorf("could not unmarshal table")
+//	}
+//	return tab, nil
 //}
-
-func getFiltersFromV2(filters *C.char) (*object.SearchFilters, error) {
-	sfs := new(object.SearchFilters)
-	err := sfs.UnmarshalJSON([]byte(C.GoString(filters)))
-	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal search filters")
-	}
-	return sfs, nil
-}
-
-func getTableFromV2(table *C.char) (*eacl.Table, error) {
-	tab := new(eacl.Table)
-	err := tab.Unmarshal([]byte(C.GoString(table)))
-	if err != nil {
-		return nil, fmt.Errorf("could not unmarshal table")
-	}
-	return tab, nil
-}
-
+//
 //func getAnnouncementsFromV2(announcement *C.char) []container.UsedSpaceAnnouncement {
 //	c := new(container.UsedSpaceAnnouncement)
 //	c.Unmarshal(C.GoString(announcement))
@@ -200,32 +202,33 @@ func getPubKey(publicKey *C.char) ecdsa.PublicKey {
 	return ecdsa.PublicKey{Curve: elliptic.P256(), X: x, Y: y}
 }
 
-func getOwnerID(key ecdsa.PublicKey) owner.ID {
-	return *owner.NewIDFromPublicKey(&key)
-}
-
-func getOwnerIDFromC(publicKey *C.char) owner.ID {
-	return getOwnerID(getPubKey(publicKey))
-}
+//
+//func getOwnerID(key ecdsa.PublicKey) owner.ID {
+//	return *owner.NewIDFromPublicKey(&key)
+//}
+//
+//func getOwnerIDFromC(publicKey *C.char) owner.ID {
+//	return getOwnerID(getPubKey(publicKey))
+//}
 
 //endregion helper
 //region client
 
 type NeoFSClient struct {
 	mu     sync.RWMutex
-	client *neofsCli.Client
+	client *neofsclient.Client
 }
 
-type NeoFSClients struct {
+type NeoFSClientMap struct {
 	mu      sync.RWMutex
 	clients map[uuid.UUID]*NeoFSClient
 }
 
-func initClients(id uuid.UUID, newClient *neofsCli.Client) {
-	neofsClients = &NeoFSClients{sync.RWMutex{}, map[uuid.UUID]*NeoFSClient{id: {sync.RWMutex{}, newClient}}}
+func initClientMap(id uuid.UUID, newClient *neofsclient.Client) {
+	neofsClientMap = &NeoFSClientMap{sync.RWMutex{}, map[uuid.UUID]*NeoFSClient{id: {sync.RWMutex{}, newClient}}}
 }
 
-func (clients *NeoFSClients) put(id uuid.UUID, newClient *neofsCli.Client) {
+func (clients *NeoFSClientMap) put(id uuid.UUID, newClient *neofsclient.Client) {
 	clients.mu.Lock()
 	clients.clients[id] = &NeoFSClient{
 		mu:     sync.RWMutex{},
@@ -234,71 +237,82 @@ func (clients *NeoFSClients) put(id uuid.UUID, newClient *neofsCli.Client) {
 	clients.mu.Unlock()
 }
 
-func (clients *NeoFSClients) delete(id uuid.UUID) bool {
+func (clients *NeoFSClientMap) delete(id uuid.UUID) bool {
 	clients.mu.Lock()
 	delete(clients.clients, id)
 	clients.mu.Unlock()
 	return true
 }
 
-var neofsClients *NeoFSClients
+var neofsClientMap *NeoFSClientMap
 
 func getClient(clientID *C.char) (*NeoFSClient, error) {
-	if neofsClients == nil {
+	if neofsClientMap == nil {
 		return nil, fmt.Errorf("no clients present")
 	}
 	cliID, err := uuid.Parse(C.GoString(clientID))
 	if err != nil {
 		return nil, fmt.Errorf("could not parse provided client id")
 	}
-	neofsClients.mu.RLock()
-	cli := neofsClients.clients[cliID]
+	neofsClientMap.mu.RLock()
+	cli := neofsClientMap.clients[cliID]
 	if cli == nil {
 		return nil, fmt.Errorf("no client present with id %v", C.GoString(clientID))
 	}
-	neofsClients.mu.RUnlock()
+	neofsClientMap.mu.RUnlock()
 	return cli, nil
 }
 
 //export CreateClient
 func CreateClient(key *C.char, neofsEndpoint *C.char) C.pointerResponse {
-	privateKey := getPrivateKey(key)
+	privateKey := getECDSAPrivKey(key)
+
+	// Initialize client
+	newClient := neofsclient.Client{}
+	var prmInit neofsclient.PrmInit
+	prmInit.SetDefaultPrivateKey(*privateKey)
+	prmInit.ResolveNeoFSFailures()
+	//prmInit.SetResponseInfoCallback()
+	newClient.Init(prmInit)
+
+	// Set dial configuration in client
+	var prmDial neofsclient.PrmDial
 	endpoint := C.GoString(neofsEndpoint)
-	newClient, err := neofsCli.New(
-		neofsCli.WithDefaultPrivateKey(&privateKey.PrivateKey),
-		neofsCli.WithURIAddress(endpoint, nil),
-		neofsCli.WithNeoFSErrorParsing(),
-	)
+	prmDial.SetServerURI(endpoint)
+	//prmDial.SetTLSConfig() // default means insecure connection
+	//prmDial.SetTimeout() // 5 seconds by default
+	err := newClient.Dial(prmDial)
 	if err != nil {
-		return pointerResponseError(fmt.Errorf("cannot create neofs client: %w", err).Error())
+		return pointerResponseError(err.Error())
 	}
+
 	u, err := uuid.NewUUID()
 	if err != nil {
 		return pointerResponseError("cannot create uuid")
 	}
 
-	if neofsClients == nil {
-		initClients(u, newClient)
+	if neofsClientMap == nil {
+		initClientMap(u, &newClient)
 	} else {
-		neofsClients.put(u, newClient)
+		neofsClientMap.put(u, &newClient)
 	}
 	return pointerResponse(reflect.TypeOf(u), []byte(u.String()))
 }
 
-//export DeleteClient
-func DeleteClient(clientID *C.char) C.pointerResponse {
-	cliID, err := uuid.Parse(C.GoString(clientID))
-	if err != nil {
-		return pointerResponseError("could not parse provided client id")
-	}
-	deleted := neofsClients.delete(cliID)
-	if !deleted {
-		return pointerResponseError("could not delete client")
-	}
-	boolean := []byte{1}
-	return pointerResponse(reflect.TypeOf(boolean), boolean)
-}
-
+////export DeleteClient
+//func DeleteClient(clientID *C.char) C.pointerResponse {
+//	cliID, err := uuid.Parse(C.GoString(clientID))
+//	if err != nil {
+//		return pointerResponseError("could not parse provided client id")
+//	}
+//	deleted := neofsClients.delete(cliID)
+//	if !deleted {
+//		return pointerResponseError("could not delete client")
+//	}
+//	boolean := []byte{1}
+//	return pointerResponse(reflect.TypeOf(boolean), boolean)
+//}
+//
 //endregion client
 //region C.response
 
