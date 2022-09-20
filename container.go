@@ -16,6 +16,7 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"reflect"
 )
 
@@ -66,22 +67,22 @@ func PutContainer(clientID *C.char, v2Container *C.char) C.response {
 func GetContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
 	ctx := context.Background()
 
-	cnrID, err := getContainerIDFromC(containerID)
+	id, err := getContainerIDFromC(containerID)
 	if err != nil {
 		return pointerResponseError(err.Error())
 	}
 
 	var prmContainerGet neofsclient.PrmContainerGet
-	prmContainerGet.SetContainer(*cnrID)
+	prmContainerGet.SetContainer(*id)
 	//prmContainerGet.WithXHeaders()
 
-	cli, err := getClient(clientID)
+	neofsClient, err := getClient(clientID)
 	if err != nil {
 		return pointerResponseClientError()
 	}
-	cli.mu.Lock()
-	resContainerGet, err := cli.client.ContainerGet(ctx, prmContainerGet)
-	cli.mu.Unlock()
+	neofsClient.mu.Lock()
+	resContainerGet, err := neofsClient.client.ContainerGet(ctx, prmContainerGet)
+	neofsClient.mu.Unlock()
 
 	if err != nil {
 		return pointerResponseError(err.Error())
@@ -96,37 +97,67 @@ func GetContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
 	if err != nil {
 		return pointerResponseError(err.Error())
 	}
-
 	bytes := v2.StableMarshal(nil)
 	return pointerResponse(reflect.TypeOf(v2), bytes)
 }
 
-////export DeleteContainer
-//func DeleteContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
-//	cli, err := getClient(clientID)
-//	if err != nil {
-//		return pointerResponseClientError()
-//	}
-//	cli.mu.RLock()
-//	ctx := context.Background()
-//	id := cid.New()
-//	err = id.Parse(C.GoString(containerID))
+//export DeleteContainer
+func DeleteContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
+	id, err := getContainerIDFromC(containerID)
+	if err != nil {
+		return pointerResponseError(err.Error())
+	}
+
+	neofsClient, err := getClient(clientID)
+	if err != nil {
+		return pointerResponseClientError()
+	}
+	neofsClient.mu.Lock()
+	return deleteContainer(neofsClient, id, nil)
+}
+
+////export DeleteContainerWithinSession
+//func DeleteContainerWithinSession(clientID *C.char, containerID *C.char, sessionToken *C.char) C.pointerResponse {
+//	id, err := getContainerIDFromC(containerID)
 //	if err != nil {
 //		return pointerResponseError(err.Error())
 //	}
-//	var prmContainerDelete neofsclient.PrmContainerDelete
-//	prmContainerDelete.SetContainer(*id)
 //
-//	resContainerDelete, err := cli.client.ContainerDelete(ctx, prmContainerDelete)
+//	tok, err := getSessionTokenFromC(sessionToken)
 //	if err != nil {
-//		pointerResponseError(err.Error())
+//		return pointerResponseError(err.Error())
 //	}
 //
-//	if !apistatus.IsSuccessful(resContainerDelete.Status()) {
-//		return resultStatusErrorResponsePointer()
+//	neofsClient, err := getClient(clientID)
+//	if err != nil {
+//		return pointerResponseClientError()
 //	}
-//	return pointerResponseNil()
+//	neofsClient.mu.Lock()
+//	return deleteContainer(neofsClient, id, tok)
 //}
+
+func deleteContainer(neofsClient *NeoFSClient, containerID *cid.ID, sessionToken *session.Container) C.pointerResponse {
+	ctx := context.Background()
+
+	var prmContainerDelete neofsclient.PrmContainerDelete
+	prmContainerDelete.SetContainer(*containerID)
+	if sessionToken != nil {
+		prmContainerDelete.WithinSession(*sessionToken)
+	}
+	//prmContainerDelete.WithXHeaders()
+
+	resContainerDelete, err := neofsClient.client.ContainerDelete(ctx, prmContainerDelete)
+	neofsClient.mu.Unlock()
+	if err != nil {
+		pointerResponseError(err.Error())
+	}
+
+	if !apistatus.IsSuccessful(resContainerDelete.Status()) {
+		return resultStatusErrorResponsePointer()
+	}
+
+	return pointerResponseBoolean(true)
+}
 
 ////export ListContainer
 //func ListContainer(clientID *C.char, ownerPubKey *C.char) *C.response {
@@ -261,6 +292,16 @@ func getContainerIDFromC(containerID *C.char) (*cid.ID, error) {
 	}
 	return id, nil
 }
+
+//func getSessionTokenFromC(sessionToken *C.char) (*session.Container, error) {
+//	token := new(session.Container)
+//
+//	err := token.Unmarshal([]byte(C.GoString(sessionToken)))
+//	if err != nil {
+//		return nil, err
+//	}
+//	return token, nil
+//}
 
 //endregion helper
 //region container old

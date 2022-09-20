@@ -73,14 +73,6 @@ func getECDSAPrivKey(key *C.char) *ecdsa.PrivateKey {
 //	return id, nil
 //}
 //
-//func getSessionTokenFromV2(sessionToken *C.char) (*session.Token, error) {
-//	token := new(session.Token)
-//	err := token.Unmarshal([]byte(C.GoString(sessionToken)))
-//	if err != nil {
-//		return nil, fmt.Errorf("could not unmarshal session token")
-//	}
-//	return token, nil
-//}
 //
 //func getBearerTokenFromV2(bearerToken *C.char) (*token.BearerToken, error) {
 //	token := new(token.BearerToken)
@@ -299,8 +291,14 @@ func pointerResponse(responseType reflect.Type, value []byte) C.pointerResponse 
 	return C.pointerResponse{C.CString(responseType.String()), C.int(len(value)), (*C.char)(C.CBytes(value))}
 }
 
-func pointerResponseNil() C.pointerResponse {
-	return C.pointerResponse{C.CString(reflect.TypeOf(nil).String()), C.int(0), C.CString("")}
+func pointerResponseBoolean(value bool) C.pointerResponse {
+	var val []byte
+	if value {
+		val = []byte{1}
+	} else {
+		val = []byte{0}
+	}
+	return C.pointerResponse{C.CString(reflect.TypeOf(value).String()), C.int(1), (*C.char)(C.CBytes(val))}
 }
 
 //type GoResponse struct {
