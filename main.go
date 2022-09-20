@@ -17,63 +17,14 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
-	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
-	v2rpcmessage "github.com/nspcc-dev/neofs-api-go/v2/rpc/message"
-	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	neofsclient "github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
 	"math/big"
 	"reflect"
 	"sync"
 )
 
-//import (
-//	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-//	"github.com/nspcc-dev/neo-go/pkg/wallet"
-//)
-
 func main() {
-
-	keyStr := "84180ac9d6eb6fba207ea4ef9d2200102d1ebeb4b9c07e2c6a738a42742e27a5"
-
-	bytes, err := hex.DecodeString(keyStr)
-
-	k := new(big.Int)
-	k.SetBytes(bytes)
-
-	priv := new(ecdsa.PrivateKey)
-	curve := elliptic.P256()
-	priv.PublicKey.Curve = curve
-	priv.D = k
-	priv.PublicKey.X, priv.PublicKey.Y = curve.ScalarBaseMult(k.Bytes())
-
-	jsonFromJava := "{\n  \"body\": {\n    \"container\": {\n      \"version\": {\n        \"major\": 2,\n        \"minor\": 11\n      },\n      \"ownerID\": {\n        \"value\": \"A9+X+2Xt74Dy/JmsSuTv0aMMUZwH+LNiF4J4fyiBqbe1\"\n      },\n      \"nonce\": \"L4Mz1w==\",\n      \"basicACL\": 532660223,\n      \"attributes\": [{\n        \"key\": \"key\",\n        \"value\": \"val\"\n      }],\n      \"placementPolicy\": {\n        \"replicas\": [{\n          \"count\": 2\n        }],\n        \"containerBackupFactor\": 1\n      }\n    }\n  },\n  \"metaHeader\": {\n    \"version\": {\n      \"major\": 2,\n      \"minor\": 11\n    },\n    \"epoch\": \"10\",\n    \"ttl\": 1000\n  }\n}"
-
-	pr := &v2container.PutRequest{}
-
-	m := pr.ToGRPCMessage().(proto.Message)
-	err = protojson.Unmarshal([]byte(jsonFromJava), m)
-
-	if err != nil {
-		fmt.Errorf(err.Error())
-	}
-
-	_ = pr.FromGRPCMessage(m)
-
-	err = v2signature.SignServiceMessage(priv, pr)
-	if err != nil {
-		fmt.Errorf(err.Error())
-	}
-
-	jsonAfter, err := v2rpcmessage.MarshalJSON(pr)
-	if err != nil {
-		fmt.Errorf(err.Error())
-	}
-
-	fmt.Println(string(jsonAfter))
-
 }
 
 func getOwnerIDFromAccount(acc *wallet.Account) user.ID {
@@ -252,14 +203,14 @@ func getClient(clientID *C.char) (*NeoFSClient, error) {
 	}
 	cliID, err := uuid.Parse(C.GoString(clientID))
 	if err != nil {
-		return nil, fmt.Errorf("could not parse provided client id")
+		return nil, fmt.Errorf("could not parse provided client id. id was " + C.GoString(clientID))
 	}
-	neofsClientMap.mu.RLock()
+	neofsClientMap.mu.Lock()
 	cli := neofsClientMap.clients[cliID]
 	if cli == nil {
 		return nil, fmt.Errorf("no client present with id %v", C.GoString(clientID))
 	}
-	neofsClientMap.mu.RUnlock()
+	neofsClientMap.mu.Unlock()
 	return cli, nil
 }
 
@@ -288,7 +239,7 @@ func CreateClient(key *C.char, neofsEndpoint *C.char) C.pointerResponse {
 
 	u, err := uuid.NewUUID()
 	if err != nil {
-		return pointerResponseError("cannot create uuid")
+		return pointerResponseError(err.Error())
 	}
 
 	if neofsClientMap == nil {
@@ -333,11 +284,11 @@ func pointerResponseClientError() C.pointerResponse {
 }
 
 func responseError(errorMsg string) C.response {
-	return response(reflect.TypeOf(new(error)), errorMsg)
+	return response(reflect.TypeOf(*new(error)), errorMsg)
 }
 
 func pointerResponseError(errorMsg string) C.pointerResponse {
-	return pointerResponse(reflect.TypeOf(new(error)), []byte(errorMsg))
+	return pointerResponse(reflect.TypeOf(*new(error)), []byte(errorMsg))
 }
 
 func response(responseType reflect.Type, value string) C.response {

@@ -34,9 +34,9 @@ func GetEndpoint(clientID *C.char) C.pointerResponse {
 	if err != nil {
 		return pointerResponseError(err.Error())
 	}
-	neofsClient.mu.RLock()
+	neofsClient.mu.Lock()
 	resEndpointInfo, err := neofsClient.client.EndpointInfo(ctx, prmEndpointInfo)
-	neofsClient.mu.RUnlock()
+	neofsClient.mu.Unlock()
 	if err != nil {
 		return pointerResponseError(err.Error())
 	}
