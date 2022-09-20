@@ -9,6 +9,15 @@ package main
 #endif
 */
 import "C"
+import (
+	"context"
+	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
+	neofsclient "github.com/nspcc-dev/neofs-sdk-go/client"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	"github.com/nspcc-dev/neofs-sdk-go/container"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"reflect"
+)
 
 /*
 ----Container----
@@ -23,82 +32,74 @@ AnnounceUsedSpace
 
 //region container
 
-////export PutContainer
-//func PutContainer(clientID *C.char, v2Container *C.char) C.response {
-//	cli, err := getClient(clientID)
-//	if err != nil {
-//		return responseClientError()
-//	}
-//	cli.mu.RLock()
-//	ctx := context.Background()
-//	cnr, err := getContainerFromV2(v2Container)
-//	if err != nil {
-//		return responseError(err.Error())
-//	}
-//	// Overwrites potentially set container version
-//	cnr.SetVersion(version.Current())
-//	newUUID, err := uuid.NewRandom()
-//	if err != nil {
-//		return responseError(err.Error())
-//	}
-//	cnr.SetNonceUUID(newUUID)
-//
-//	// The following are expected to be set within the provided container parameter
-//	//  - placement policy
-//	//  - permissions
-//	//  - attributes
-//	var prmContainerPut neofsclient.PrmContainerPut
-//	prmContainerPut.SetContainer(*cnr)
-//
-//	resContainerPut, err := cli.client.ContainerPut(ctx, prmContainerPut)
-//	if err != nil {
-//		return responseError(err.Error())
-//	}
-//	if !apistatus.IsSuccessful(resContainerPut.Status()) {
-//		return resultStatusErrorResponse()
-//	}
-//	containerID := resContainerPut.ID()
-//	return response(reflect.TypeOf(containerID), containerID.String())
-//}
+//export PutContainer
+func PutContainer(clientID *C.char, v2Container *C.char) C.response {
+	ctx := context.TODO()
+	cnr, err := getContainerFromC(v2Container)
+	if err != nil {
+		return responseError(err.Error())
+	}
 
-////export GetContainer
-//func GetContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
-//	cli, err := getClient(clientID)
-//	if err != nil {
-//		return pointerResponseClientError()
-//	}
-//	fmt.Println("start locking")
-//	cli.mu.RLock() // Write Lock causes to run extremely long >36min and no progress!
-//	fmt.Println("locked")
-//	ctx := context.Background()
-//	id := cid.New()
-//	err = id.Parse(C.GoString(containerID))
-//	if err != nil {
-//		return pointerResponseError(err.Error())
-//	}
-//	fmt.Printf("id shared-lib: " + id.String())
-//	var prmContainerGet neofsclient.PrmContainerGet
-//	prmContainerGet.SetContainer(*id)
-//
-//	resContainerGet, err := cli.client.ContainerGet(ctx, prmContainerGet)
-//	fmt.Println("start unlocking")
-//	cli.mu.RUnlock()
-//	fmt.Println("unlocked")
-//
-//	if err != nil {
-//		fmt.Println("ContainerGet error")
-//		return pointerResponseError(err.Error())
-//	}
-//	if !apistatus.IsSuccessful(resContainerGet.Status()) {
-//		return resultStatusErrorResponsePointer()
-//	}
-//	ctr := resContainerGet.Container()
-//	container, err := ctr.Marshal()
-//	if err != nil {
-//		return pointerResponseError(err.Error())
-//	}
-//	return pointerResponse(reflect.TypeOf(ctr), container)
-//}
+	var prmContainerPut neofsclient.PrmContainerPut
+	prmContainerPut.SetContainer(*cnr)
+
+	neofsClient, err := getClient(clientID)
+	if err != nil {
+		return responseClientError()
+	}
+	neofsClient.mu.Lock()
+	resContainerPut, err := neofsClient.client.ContainerPut(ctx, prmContainerPut)
+	neofsClient.mu.Unlock()
+	if err != nil {
+		return responseError(err.Error())
+	}
+
+	if !apistatus.IsSuccessful(resContainerPut.Status()) {
+		return resultStatusErrorResponse()
+	}
+
+	containerID := *resContainerPut.ID()
+	return response(reflect.TypeOf(containerID), containerID.String())
+}
+
+//export GetContainer
+func GetContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
+	ctx := context.Background()
+
+	cnrID, err := getContainerIDFromC(containerID)
+	if err != nil {
+		return pointerResponseError(err.Error())
+	}
+
+	var prmContainerGet neofsclient.PrmContainerGet
+	prmContainerGet.SetContainer(*cnrID)
+	//prmContainerGet.WithXHeaders()
+
+	cli, err := getClient(clientID)
+	if err != nil {
+		return pointerResponseClientError()
+	}
+	cli.mu.Lock()
+	resContainerGet, err := cli.client.ContainerGet(ctx, prmContainerGet)
+	cli.mu.Unlock()
+
+	if err != nil {
+		return pointerResponseError(err.Error())
+	}
+	if !apistatus.IsSuccessful(resContainerGet.Status()) {
+		return resultStatusErrorResponsePointer()
+	}
+
+	cnr := resContainerGet.Container()
+	var v2 v2container.Container
+	cnr.WriteToV2(&v2)
+	if err != nil {
+		return pointerResponseError(err.Error())
+	}
+
+	bytes := v2.StableMarshal(nil)
+	return pointerResponse(reflect.TypeOf(v2), bytes)
+}
 
 ////export DeleteContainer
 //func DeleteContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
@@ -185,7 +186,7 @@ AnnounceUsedSpace
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
-//	containerID, err := getContainerIDFromV2(v2ContainerID)
+//	containerID, err := getV2ContainerIDFromC(v2ContainerID)
 //	if err != nil {
 //		return pointerResponseError(err.Error())
 //	}
@@ -236,24 +237,30 @@ AnnounceUsedSpace
 //endregion container
 //region helper
 
-//func getContainerFromV2(v2Container *C.char) (*container.Container, error) {
-//	sdkContainer := new(container.Container)
-//	str := C.GoString(v2Container)
-//	err := sdkContainer.UnmarshalJSON([]byte(str))
-//	if err != nil {
-//		return nil, fmt.Errorf("could not unmarshal container")
-//	}
-//	return sdkContainer, nil
-//}
+func getContainerFromC(v2Container *C.char) (*container.Container, error) {
+	v2cnr := new(v2container.Container)
+	err := v2cnr.UnmarshalJSON([]byte(C.GoString(v2Container)))
+	if err != nil {
+		return nil, err
+	}
+	//v2cnr.SetHomomorphicHashingState()
 
-//func getContainerIDFromV2(containerID *C.char) (*cid.ID, error) {
-//	id := new(cid.ID)
-//	err := id.UnmarshalJSON([]byte(C.GoString(containerID)))
-//	if err != nil {
-//		return nil, fmt.Errorf("could not unmarshal container id")
-//	}
-//	return id, nil
-//}
+	var cnr container.Container
+	err = cnr.ReadFromV2(*v2cnr)
+	if err != nil {
+		return nil, err
+	}
+	return &cnr, nil
+}
+
+func getContainerIDFromC(containerID *C.char) (*cid.ID, error) {
+	id := new(cid.ID)
+	err := id.DecodeString(C.GoString(containerID))
+	if err != nil {
+		return nil, err
+	}
+	return id, nil
+}
 
 //endregion helper
 //region container old
@@ -321,7 +328,7 @@ AnnounceUsedSpace
 //func NewContainerPutRequest(key *C.char, v2Container *C.char) *C.char {
 //	privKey := getECDSAPrivKey(key)
 //
-//	cnr, err := getContainerFromV2(v2Container)
+//	cnr, err := getV2ContainerFromC(v2Container)
 //	if err != nil {
 //		panic("could not get container from v2")
 //	}
