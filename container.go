@@ -159,28 +159,45 @@ func deleteContainer(neofsClient *NeoFSClient, containerID *cid.ID, sessionToken
 	return pointerResponseBoolean(true)
 }
 
-////export ListContainer
-//func ListContainer(clientID *C.char, ownerPubKey *C.char) *C.response {
-//	cli, err := getClient(clientID)
-//	if err != nil {
-//		return responseClientError()
-//	}
-//	cli.mu.RLock()
-//	ctx := context.Background()
-//	var prmContainerList neofsclient.PrmContainerList
-//	prmContainerList.SetAccount(getOwnerID(ownerPubKey))
-//
-//	resContainerList, err := cli.client.ContainerList(ctx, prmContainerList)
-//	cli.mu.RUnlock()
-//	if err != nil {
-//		return responseError("could not get container list")
-//	}
-//	if !apistatus.IsSuccessful(resContainerList.Status()) {
-//		return resultStatusErrorResponse()
-//	}
-//	containerIDs := resContainerList.Containers()
-//	return response("ContainerList", containerIDs[0]) // how return []cid.ID
-//}
+//export ListContainer
+func ListContainer(clientID *C.char, ownerPubKey *C.char) C.pointerResponse {
+	ctx := context.Background()
+
+	var prmContainerList neofsclient.PrmContainerList
+	key, err := userIDFromPublicKey(ownerPubKey)
+	if err != nil {
+		return pointerResponseError(err.Error())
+	}
+	prmContainerList.SetAccount(*key)
+	//prmContainerList.WithXHeaders()
+
+	cli, err := getClient(clientID)
+	if err != nil {
+		return pointerResponseClientError()
+	}
+	cli.mu.Lock()
+	resContainerList, err := cli.client.ContainerList(ctx, prmContainerList)
+	cli.mu.Unlock()
+	if err != nil {
+		return pointerResponseError(err.Error())
+	}
+
+	if !apistatus.IsSuccessful(resContainerList.Status()) {
+		return resultStatusErrorResponsePointer()
+	}
+
+	containerIDs := resContainerList.Containers()
+	ids := parseContainerIDs(containerIDs)
+	return pointerResponse(reflect.TypeOf(containerIDs), ids) // how return []cid.ID
+}
+
+func parseContainerIDs(containerIDList []cid.ID) []byte {
+	bytes := make([]byte, 0)
+	for _, id := range containerIDList {
+		bytes = append(bytes[:], []byte(id.EncodeToString())...)
+	}
+	return bytes
+}
 
 ////export SetExtendedACL
 //func SetExtendedACL(clientID *C.char, v2Table *C.char) C.pointerResponse {
