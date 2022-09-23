@@ -157,6 +157,8 @@ func getPubKey(publicKey *C.char) ecdsa.PublicKey {
 //endregion helper
 //region client
 
+var neofsClientMap *NeoFSClientMap
+
 type NeoFSClient struct {
 	mu     sync.RWMutex
 	client *neofsclient.Client
@@ -186,8 +188,6 @@ func (clients *NeoFSClientMap) delete(id uuid.UUID) bool {
 	clients.mu.Unlock()
 	return true
 }
-
-var neofsClientMap *NeoFSClientMap
 
 func getClient(clientID *C.char) (*NeoFSClient, error) {
 	if neofsClientMap == nil {

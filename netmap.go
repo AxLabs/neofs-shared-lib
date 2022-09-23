@@ -23,6 +23,7 @@ import (
 ----Netmap----
 NetworkInfo
 EndpointInfo
+NetMapSnapshot (only exists >v1.0.0-rc.6)
 */
 
 //export GetEndpoint
@@ -41,8 +42,8 @@ func GetEndpoint(clientID *C.char) C.pointerResponse {
 		return pointerResponseError(err.Error())
 	}
 
-	status := resEndpointInfo.Status()
-	if !apistatus.IsSuccessful(status) {
+	// Todo: Return specific status instead of default unsuccessful status.
+	if !apistatus.IsSuccessful(resEndpointInfo.Status()) {
 		return resultStatusErrorResponsePointer()
 	}
 
