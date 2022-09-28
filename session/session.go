@@ -1,71 +1,61 @@
-package main
+package session
 
-/*
-#include <stdlib.h>
-
-#ifndef RESPONSE_H
-#define RESPONSE_H
-#include "response.h"
-#endif
-*/
-import "C"
-
-/*
-----Session----
-Create
-*/
-
+///*
+//----Session----
+//Create
+//*/
+//
 ////export CreateSession
-//func CreateSession(clientID *C.char, sessionExpiration *C.char) C.pointerResponse {
-//	cli, err := getClient(clientID)
+//func CreateSession(clientID *C.char, sessionExpiration *C.char) C.PointerResponse {
+//	cli, err := GetClient(clientID)
 //	if err != nil {
-//		return pointerResponseClientError()
+//		return PointerResponseClientError()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
 //	var prmSessionCreate neofsclient.PrmSessionCreate
 //	exp, err := strconv.ParseUint(C.GoString(sessionExpiration), 10, 64)
 //	if err != nil {
-//		return pointerResponseError("could not parse session expiration to uint64")
+//		return PointerResponseError("could not parse session expiration to uint64")
 //	}
 //	prmSessionCreate.SetExp(exp)
 //
 //	resSessionCreate, err := cli.client.SessionCreate(ctx, prmSessionCreate)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return pointerResponseError(err.Error())
+//		return PointerResponseError(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resSessionCreate.Status()) {
-//		return resultStatusErrorResponsePointer()
+//		return ResultStatusErrorResponsePointer()
 //	}
 //	sessionID := resSessionCreate.ID()
 //	//sessionPublicKey := resSessionCreate.PublicKey()
-//	return pointerResponse(reflect.TypeOf(sessionID), sessionID) // handle method with two return values
+//	return PointerResponse(reflect.TypeOf(sessionID), sessionID) // handle method with two return values
 //}
-
+//
 ////export CreateSessionPubKey
-//func CreateSessionPubKey(clientID *C.char, sessionExpiration *C.char) C.pointerResponse {
-//	cli, err := getClient(clientID)
+//func CreateSessionPubKey(clientID *C.char, sessionExpiration *C.char) C.PointerResponse {
+//	cli, err := GetClient(clientID)
 //	if err != nil {
-//		return pointerResponseClientError()
+//		return PointerResponseClientError()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
 //	var prmSessionCreate neofsclient.PrmSessionCreate
 //	exp, err := strconv.ParseUint(C.GoString(sessionExpiration), 10, 64)
 //	if err != nil {
-//		return pointerResponseError("could not parse session expiration to uint64")
+//		return PointerResponseError("could not parse session expiration to uint64")
 //	}
 //	prmSessionCreate.SetExp(exp)
 //
 //	resSessionCreate, err := cli.client.SessionCreate(ctx, prmSessionCreate)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return pointerResponseError(err.Error())
+//		return PointerResponseError(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resSessionCreate.Status()) {
-//		return resultStatusErrorResponsePointer()
+//		return ResultStatusErrorResponsePointer()
 //	}
 //	sessionPublicKey := resSessionCreate.PublicKey()
-//	return pointerResponse(reflect.TypeOf(sessionPublicKey), sessionPublicKey) // handle method with two return values
+//	return PointerResponse(reflect.TypeOf(sessionPublicKey), sessionPublicKey) // handle method with two return values
 //}

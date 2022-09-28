@@ -1,17 +1,12 @@
-package main
+package netmap
 
-/*
-#include <stdlib.h>
-
-#ifndef RESPONSE_H
-#define RESPONSE_H
-#include "response.h"
-#endif
-*/
-import "C"
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/AxLabs/neofs-api-shared-lib/client"
+	"github.com/AxLabs/neofs-api-shared-lib/response"
+	"github.com/google/uuid"
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	neofsclient "github.com/nspcc-dev/neofs-sdk-go/client"
@@ -26,32 +21,30 @@ EndpointInfo
 NetMapSnapshot (only exists >v1.0.0-rc.6)
 */
 
-//export GetEndpoint
-func GetEndpoint(clientID *C.char) C.pointerResponse {
+func GetEndpoint(clientID *uuid.UUID) *response.PointerResponse {
 	ctx := context.Background()
 	var prmEndpointInfo neofsclient.PrmEndpointInfo
 
-	neofsClient, err := getClient(clientID)
+	neofsClient, err := client.GetClient(clientID)
 	if err != nil {
-		return pointerResponseError(err.Error())
+		return response.Error(err)
 	}
-	neofsClient.mu.Lock()
-	resEndpointInfo, err := neofsClient.client.EndpointInfo(ctx, prmEndpointInfo)
-	neofsClient.mu.Unlock()
+	resEndpointInfo, err := neofsClient.LockAndGet().EndpointInfo(ctx, prmEndpointInfo)
+	neofsClient.Unlock()
 	if err != nil {
-		return pointerResponseError(err.Error())
+		return response.Error(err)
 	}
 
 	// Todo: Return specific status instead of default unsuccessful status.
 	if !apistatus.IsSuccessful(resEndpointInfo.Status()) {
-		return resultStatusErrorResponsePointer()
+		return response.StatusResponse()
 	}
 
 	bytes, err := buildEndpointResponse(resEndpointInfo)
 	if err != nil {
-		return pointerResponseError(err.Error())
+		return response.Error(err)
 	}
-	return pointerResponse(reflect.TypeOf(neofsclient.ResEndpointInfo{}), bytes)
+	return response.New(reflect.TypeOf(EndpointResponse{}), bytes)
 }
 
 func buildEndpointResponse(resEndpointInfo *neofsclient.ResEndpointInfo) ([]byte, error) {
@@ -84,35 +77,33 @@ type EndpointResponse struct {
 	LatestVersion string `json:"version.Version"`
 }
 
-//export GetNetworkInfo
-func GetNetworkInfo(clientID *C.char) C.pointerResponse {
+func GetNetworkInfo(clientID *uuid.UUID) *response.PointerResponse {
 	ctx := context.Background()
 	var prmNetworkInfo neofsclient.PrmNetworkInfo
 	//prmNetworkInfo.WithXHeaders()
 
-	neofsClient, err := getClient(clientID)
+	neofsClient, err := client.GetClient(clientID)
 	if err != nil {
-		return pointerResponseError(err.Error())
+		return response.Error(err)
 	}
-	neofsClient.mu.Lock()
-	resNetworkInfo, err := neofsClient.client.NetworkInfo(ctx, prmNetworkInfo)
-	neofsClient.mu.Unlock()
+	resNetworkInfo, err := neofsClient.LockAndGet().NetworkInfo(ctx, prmNetworkInfo)
+	neofsClient.Unlock()
 	if err != nil {
-		return pointerResponseError(err.Error())
+		return response.Error(err)
 	}
 
 	status := resNetworkInfo.Status()
 	if !apistatus.IsSuccessful(status) {
-		return resultStatusErrorResponsePointer()
+		return response.StatusResponse()
 	}
 	info := resNetworkInfo.Info()
 	if info == nil {
-		return pointerResponseError("could not get network info of endpoint")
+		return response.Error(fmt.Errorf("could not get network info of endpoint"))
 	}
 
 	var v2 v2netmap.NetworkInfo
 	info.WriteToV2(&v2)
 	bytes := v2.StableMarshal(nil)
 
-	return pointerResponse(reflect.TypeOf(*info), bytes)
+	return response.New(reflect.TypeOf(*info), bytes)
 }

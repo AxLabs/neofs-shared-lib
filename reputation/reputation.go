@@ -1,32 +1,23 @@
-package main
+package reputation
 
-/*
-#include <stdlib.h>
-
-#ifndef RESPONSE_H
-#define RESPONSE_H
-#include "response.h"
-#endif
-*/
-import "C"
-
-/*
-----Reputation----
-AnnounceLocalTrust
-AnnounceIntermediateResult
-*/
-
+//
+///*
+//----Reputation----
+//AnnounceLocalTrust
+//AnnounceIntermediateResult
+//*/
+//
 ////export AnnounceLocalTrust
-//func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) C.response {
-//	cli, err := getClient(clientID)
+//func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) C.Response {
+//	cli, err := GetClient(clientID)
 //	if err != nil {
-//		return responseClientError()
+//		return ResponseClientError()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
 //	trusts, err := getTrustsFromV2(v2Trusts)
 //	if err != nil {
-//		return responseError(err.Error())
+//		return ResponseError(err.Error())
 //	}
 //
 //	var prmAnnounceLocalTrust neofsCli.PrmAnnounceLocalTrust
@@ -36,20 +27,20 @@ AnnounceIntermediateResult
 //	resAnnounceLocalTrust, err := cli.client.AnnounceLocalTrust(ctx, prmAnnounceLocalTrust)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return responseError(err.Error())
+//		return ResponseError(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resAnnounceLocalTrust.Status()) {
-//		return resultStatusErrorResponse()
+//		return ResultStatusErrorResponse()
 //	}
 //	boolean := []byte{1}
-//	return response(reflect.TypeOf(boolean), boolean)
+//	return Response(reflect.TypeOf(boolean), boolean)
 //}
 
 ////export AnnounceIntermediateResult
-//func AnnounceIntermediateResult(clientID *C.char, v2P2PTrust *C.char, epoch *C.char, iteration *C.char) C.response {
-//	cli, err := getClient(clientID)
+//func AnnounceIntermediateResult(clientID *C.char, v2P2PTrust *C.char, epoch *C.char, iteration *C.char) C.Response {
+//	cli, err := GetClient(clientID)
 //	if err != nil {
-//		return responseClientError()
+//		return ResponseClientError()
 //	}
 //	cli.mu.RLock()
 //	ctx := context.Background()
@@ -65,11 +56,11 @@ AnnounceIntermediateResult
 //	resAnnounceIntermediateTrust, err := cli.client.AnnounceIntermediateTrust(ctx, prmAnnounceIntermediateTrust)
 //	cli.mu.RUnlock()
 //	if err != nil {
-//		return responseError(err.Error())
+//		return ResponseError(err.Error())
 //	}
 //	if !apistatus.IsSuccessful(resAnnounceIntermediateTrust.Status()) {
-//		return resultStatusErrorResponse()
+//		return ResultStatusErrorResponse()
 //	}
 //	boolean := []byte{1}
-//	return response(reflect.TypeOf(boolean), boolean)
+//	return Response(reflect.TypeOf(boolean), boolean)
 //}
