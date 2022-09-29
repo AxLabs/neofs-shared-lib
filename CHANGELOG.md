@@ -1,3 +1,9 @@
+# v0.0.6
+
+* Restructured library into packages based on NeoFS API.
+* The main package is responsible for exporting methods, and handling C values with cgo.
+* Not yet productive.
+
 # v0.0.5
 
 * Add a zip file with all shared lib files. Easier to download.
