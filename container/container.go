@@ -1,5 +1,6 @@
 package container
 
+import "C"
 import (
 	"context"
 	"github.com/AxLabs/neofs-api-shared-lib/client"
@@ -9,6 +10,8 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"reflect"
 )
 
@@ -44,13 +47,14 @@ func PutContainer(neofsClient *client.NeoFSClient, cnr *container.Container) *re
 }
 
 func GetContainer(neofsClient *client.NeoFSClient, containerID *cid.ID) *response.PointerResponse {
+	client := neofsClient.LockAndGet()
 	ctx := context.Background()
 
 	var prmContainerGet neofsclient.PrmContainerGet
 	prmContainerGet.SetContainer(*containerID)
 	//prmContainerGet.WithXHeaders()
 
-	resContainerGet, err := neofsClient.LockAndGet().ContainerGet(ctx, prmContainerGet)
+	resContainerGet, err := client.ContainerGet(ctx, prmContainerGet)
 	neofsClient.Unlock()
 
 	if err != nil {
@@ -70,349 +74,165 @@ func GetContainer(neofsClient *client.NeoFSClient, containerID *cid.ID) *respons
 	return response.New(reflect.TypeOf(v2), bytes)
 }
 
-////export DeleteContainer
-//func DeleteContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
+func DeleteContainer(neofsClient *client.NeoFSClient, containerID *cid.ID) *response.PointerResponse {
+	return deleteContainer(neofsClient, containerID, nil)
+}
+
+////export DeleteContainerWithinSession
+//func DeleteContainerWithinSession(clientID *C.char, containerID *C.char, sessionToken *C.char) C.PointerResponse {
 //	id, err := getContainerIDFromC(containerID)
 //	if err != nil {
-//		return response.PointerResponseError(err.Error())
+//		return PointerResponseError(err.Error())
 //	}
 //
-//	neofsClient, err := client.GetClient(clientID)
+//	tok, err := getSessionTokenFromC(sessionToken)
 //	if err != nil {
-//		return response.PointerResponseClientError()
+//		return PointerResponseError(err.Error())
 //	}
-//	return deleteContainer(neofsClient, id, nil)
+//
+//	neofsClient, err := GetClient(clientID)
+//	if err != nil {
+//		return PointerResponseClientError()
+//	}
+//	neofsClient.mu.Lock()
+//	return deleteContainer(neofsClient, id, tok)
 //}
-//
-//////export DeleteContainerWithinSession
-////func DeleteContainerWithinSession(clientID *C.char, containerID *C.char, sessionToken *C.char) C.PointerResponse {
-////	id, err := getContainerIDFromC(containerID)
-////	if err != nil {
-////		return PointerResponseError(err.Error())
-////	}
-////
-////	tok, err := getSessionTokenFromC(sessionToken)
-////	if err != nil {
-////		return PointerResponseError(err.Error())
-////	}
-////
-////	neofsClient, err := GetClient(clientID)
-////	if err != nil {
-////		return PointerResponseClientError()
-////	}
-////	neofsClient.mu.Lock()
-////	return deleteContainer(neofsClient, id, tok)
-////}
-//
-//func deleteContainer(neofsClient *client.NeoFSClient, containerID *cid.ID, sessionToken *session.Container) C.pointerResponse {
-//	client := neofsClient.LockAndGet()
+
+func deleteContainer(neofsClient *client.NeoFSClient, containerID *cid.ID, sessionToken *session.Container) *response.PointerResponse {
+	client := neofsClient.LockAndGet()
+	ctx := context.Background()
+
+	var prmContainerDelete neofsclient.PrmContainerDelete
+	prmContainerDelete.SetContainer(*containerID)
+	if sessionToken != nil {
+		prmContainerDelete.WithinSession(*sessionToken)
+	}
+	//prmContainerDelete.WithXHeaders()
+
+	resContainerDelete, err := client.ContainerDelete(ctx, prmContainerDelete)
+	if err != nil {
+		return response.Error(err)
+	}
+	neofsClient.Unlock()
+
+	if !apistatus.IsSuccessful(resContainerDelete.Status()) {
+		return response.StatusResponse()
+	}
+	return response.NewBoolean(true)
+}
+
+func ListContainer(neofsClient *client.NeoFSClient, userID *user.ID) *response.PointerResponse {
+	client := neofsClient.LockAndGet()
+	ctx := context.Background()
+
+	var prmContainerList neofsclient.PrmContainerList
+	prmContainerList.SetAccount(*userID)
+	//prmContainerList.WithXHeaders()
+
+	resContainerList, err := client.ContainerList(ctx, prmContainerList)
+	neofsClient.Unlock()
+	if err != nil {
+		return response.Error(err)
+	}
+
+	if !apistatus.IsSuccessful(resContainerList.Status()) {
+		return response.StatusResponse()
+	}
+
+	containerIDs := resContainerList.Containers()
+	ids := parseContainerIDs(containerIDs)
+	return response.New(reflect.TypeOf(containerIDs), ids)
+}
+
+func parseContainerIDs(containerIDList []cid.ID) []byte {
+	bytes := make([]byte, 0)
+	for _, id := range containerIDList {
+		bytes = append(bytes[:], []byte(id.EncodeToString())...)
+	}
+	return bytes
+}
+
+////export SetExtendedACL
+//func SetExtendedACL(clientID *C.char, v2Table *C.char) C.PointerResponse {
+//	cli, err := GetClient(clientID)
+//	if err != nil {
+//		return PointerResponseClientError()
+//	}
+//	cli.mu.RLock()
 //	ctx := context.Background()
-//
-//	var prmContainerDelete neofsclient.PrmContainerDelete
-//	prmContainerDelete.SetContainer(*containerID)
-//	if sessionToken != nil {
-//		prmContainerDelete.WithinSession(*sessionToken)
-//	}
-//	//prmContainerDelete.WithXHeaders()
-//
-//	resContainerDelete, err := client.ContainerDelete(ctx, prmContainerDelete)
-//	neofsClient.Unlock()
+//	table, err := getTableFromV2(v2Table)
 //	if err != nil {
-//		response.PointerResponseError(err.Error())
+//		return PointerResponseError(err.Error())
 //	}
+//	var prmContainerSetEACL neofsclient.PrmContainerSetEACL
+//	prmContainerSetEACL.SetTable(*table)
 //
-//	if !apistatus.IsSuccessful(resContainerDelete.Status()) {
-//		return response.ResultStatusErrorResponsePointer()
+//	resContainerSetEACL, err := cli.client.ContainerSetEACL(ctx, prmContainerSetEACL)
+//	cli.mu.RUnlock()
+//	if err != nil {
+//		return PointerResponseError(err.Error())
 //	}
-//
-//	return response.PointerResponseBoolean(true)
+//	if !apistatus.IsSuccessful(resContainerSetEACL.Status()) {
+//		return ResultStatusErrorResponsePointer()
+//	}
+//	boolean := []byte{1}
+//	return PointerResponse(reflect.TypeOf(boolean), boolean)
 //}
-//
-////export ListContainer
-//func ListContainer(clientID *C.char, ownerPubKey *C.char) C.pointerResponse {
+
+////export GetExtendedACL
+//func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.PointerResponse {
+//	cli, err := GetClient(clientID)
+//	if err != nil {
+//		return PointerResponseClientError()
+//	}
+//	cli.mu.RLock()
 //	ctx := context.Background()
-//
-//	var prmContainerList neofsclient.PrmContainerList
-//	key, err := util.UserIDFromPublicKey(ownerPubKey)
+//	containerID, err := getV2ContainerIDFromC(v2ContainerID)
 //	if err != nil {
-//		return response.PointerResponseError(err.Error())
+//		return PointerResponseError(err.Error())
 //	}
-//	prmContainerList.SetAccount(*key)
-//	//prmContainerList.WithXHeaders()
+//	var prmContainerEACL neofsclient.PrmContainerEACL
+//	prmContainerEACL.SetContainer(*containerID)
 //
-//	neofsClient, err := client.GetClient(clientID)
+//	cnrResponse, err := cli.client.ContainerEACL(ctx, prmContainerEACL)
+//	cli.mu.RUnlock()
 //	if err != nil {
-//		return response.PointerResponseClientError()
+//		return PointerResponseError(err.Error())
 //	}
-//	resContainerList, err := neofsClient.LockAndGet().ContainerList(ctx, prmContainerList)
-//	neofsClient.Unlock()
+//	if !apistatus.IsSuccessful(cnrResponse.Status()) {
+//		return ResultStatusErrorResponsePointer()
+//	}
+//	table := cnrResponse.Table()
+//	tableBytes, err := cnrResponse.Table().Marshal()
 //	if err != nil {
-//		return response.PointerResponseError(err.Error())
+//		return PointerResponseError("could not marshal eacl table")
 //	}
-//
-//	if !apistatus.IsSuccessful(resContainerList.Status()) {
-//		return response.ResultStatusErrorResponsePointer()
-//	}
-//
-//	containerIDs := resContainerList.Containers()
-//	ids := parseContainerIDs(containerIDs)
-//	return response.PointerResponse(reflect.TypeOf(containerIDs), ids) // how return []cid.ID
+//	return PointerResponse(reflect.TypeOf(table), tableBytes)
 //}
-//
-//func parseContainerIDs(containerIDList []cid.ID) []byte {
-//	bytes := make([]byte, 0)
-//	for _, id := range containerIDList {
-//		bytes = append(bytes[:], []byte(id.EncodeToString())...)
-//	}
-//	return bytes
-//}
-//
-//////export SetExtendedACL
-////func SetExtendedACL(clientID *C.char, v2Table *C.char) C.PointerResponse {
-////	cli, err := GetClient(clientID)
-////	if err != nil {
-////		return PointerResponseClientError()
-////	}
-////	cli.mu.RLock()
-////	ctx := context.Background()
-////	table, err := getTableFromV2(v2Table)
-////	if err != nil {
-////		return PointerResponseError(err.Error())
-////	}
-////	var prmContainerSetEACL neofsclient.PrmContainerSetEACL
-////	prmContainerSetEACL.SetTable(*table)
-////
-////	resContainerSetEACL, err := cli.client.ContainerSetEACL(ctx, prmContainerSetEACL)
-////	cli.mu.RUnlock()
-////	if err != nil {
-////		return PointerResponseError(err.Error())
-////	}
-////	if !apistatus.IsSuccessful(resContainerSetEACL.Status()) {
-////		return ResultStatusErrorResponsePointer()
-////	}
-////	boolean := []byte{1}
-////	return PointerResponse(reflect.TypeOf(boolean), boolean)
-////}
-//
-//////export GetExtendedACL
-////func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.PointerResponse {
-////	cli, err := GetClient(clientID)
-////	if err != nil {
-////		return PointerResponseClientError()
-////	}
-////	cli.mu.RLock()
-////	ctx := context.Background()
-////	containerID, err := getV2ContainerIDFromC(v2ContainerID)
-////	if err != nil {
-////		return PointerResponseError(err.Error())
-////	}
-////	var prmContainerEACL neofsclient.PrmContainerEACL
-////	prmContainerEACL.SetContainer(*containerID)
-////
-////	cnrResponse, err := cli.client.ContainerEACL(ctx, prmContainerEACL)
-////	cli.mu.RUnlock()
-////	if err != nil {
-////		return PointerResponseError(err.Error())
-////	}
-////	if !apistatus.IsSuccessful(cnrResponse.Status()) {
-////		return ResultStatusErrorResponsePointer()
-////	}
-////	table := cnrResponse.Table()
-////	tableBytes, err := cnrResponse.Table().Marshal()
-////	if err != nil {
-////		return PointerResponseError("could not marshal eacl table")
-////	}
-////	return PointerResponse(reflect.TypeOf(table), tableBytes)
-////}
-//
-//////export AnnounceUsedSpace
-////func AnnounceUsedSpace(clientID *C.char, announcements *C.char) C.PointerResponse {
-////	cli, err := GetClient(clientID)
-////	if err != nil {
-////		return PointerResponseClientError()
-////	}
-////	cli.mu.RLock()
-////	ctx := context.Background()
-////	ann := getAnnouncementsFromV2(announcements)
-////
-////	var prmContainerAnnounceSpace neofsclient.PrmAnnounceSpace
-////	prmContainerAnnounceSpace.SetValues(ann)
-////
-////	resContainerAnnounceUsedSpace, err := cli.client.ContainerAnnounceUsedSpace(ctx, prmContainerAnnounceSpace)
-////	cli.mu.RUnlock()
-////	if err != nil {
-////		return PointerResponseError(err.Error())
-////	}
-////	if !apistatus.IsSuccessful(resContainerAnnounceUsedSpace.Status()) {
-////		return ResultStatusErrorResponsePointer()
-////	}
-////	boolean := []byte{1}
-////	return PointerResponse(reflect.TypeOf(boolean), boolean)
-////}
-//
-////endregion container
-////region helper
-//
-//func getContainerFromC(v2Container *C.char) (*container.Container, error) {
-//	v2cnr := new(v2container.Container)
-//	err := v2cnr.UnmarshalJSON([]byte(C.GoString(v2Container)))
+
+////export AnnounceUsedSpace
+//func AnnounceUsedSpace(clientID *C.char, announcements *C.char) C.PointerResponse {
+//	cli, err := GetClient(clientID)
 //	if err != nil {
-//		return nil, err
+//		return PointerResponseClientError()
 //	}
-//	//v2cnr.SetHomomorphicHashingState()
+//	cli.mu.RLock()
+//	ctx := context.Background()
+//	ann := getAnnouncementsFromV2(announcements)
 //
-//	var cnr container.Container
-//	err = cnr.ReadFromV2(*v2cnr)
+//	var prmContainerAnnounceSpace neofsclient.PrmAnnounceSpace
+//	prmContainerAnnounceSpace.SetValues(ann)
+//
+//	resContainerAnnounceUsedSpace, err := cli.client.ContainerAnnounceUsedSpace(ctx, prmContainerAnnounceSpace)
+//	cli.mu.RUnlock()
 //	if err != nil {
-//		return nil, err
+//		return PointerResponseError(err.Error())
 //	}
-//	return &cnr, nil
-//}
-//
-//func getContainerIDFromC(containerID *C.char) (*cid.ID, error) {
-//	id := new(cid.ID)
-//	err := id.DecodeString(C.GoString(containerID))
-//	if err != nil {
-//		return nil, err
+//	if !apistatus.IsSuccessful(resContainerAnnounceUsedSpace.Status()) {
+//		return ResultStatusErrorResponsePointer()
 //	}
-//	return id, nil
+//	boolean := []byte{1}
+//	return PointerResponse(reflect.TypeOf(boolean), boolean)
 //}
-//
-////func getSessionTokenFromC(sessionToken *C.char) (*session.Container, error) {
-////	token := new(session.Container)
-////
-////	err := token.Unmarshal([]byte(C.GoString(sessionToken)))
-////	if err != nil {
-////		return nil, err
-////	}
-////	return token, nil
-////}
-//
-////endregion helper
-////region container old
-//
-//////export PutContainerBasic
-////func PutContainerBasic(key *C.char) *C.char {
-////	TESTNET := "grpcs://st01.testnet.fs.neo.org:8082"
-////	// create client from parameter
-////	//ctx := context.TODO()
-////	ctx := context.Background()
-////	//walletCli, err := client.New(ctx, "http://seed1t4.neo.org:2332", client.Options{}) // get Neo endpoint from parameter
-////	//if err != nil {
-////	//	return fmt.Errorf("can't create wallet client: %w", err)
-////	//}
-////
-////	privateKey := keys.PrivateKey{PrivateKey: *GetECDSAPrivKey(key)}
-////	ownerAcc := wallet.NewAccountFromPrivateKey(&privateKey)
-////	fsCli, err := neofsclient.New(
-////		neofsclient.WithDefaultPrivateKey(&privateKey.PrivateKey),
-////		neofsclient.WithURIAddress(TESTNET, nil), // get NeoFS endpoint from parameter
-////		neofsclient.WithNeoFSErrorParsing(),
-////	)
-////	if err != nil {
-////		panic(fmt.Errorf("can't create neofs client: %w", err))
-////	}
-////
-////	//	create container from parameter
-////	//	required:
-////	//	o	create placement policy
-////	//	x	access to private key
-////	//	o	set permissions
-////	//	o	neofs client
-////
-////	ownerID := getOwnerIDFromAccount(ownerAcc)
-////
-////	placementPolicy := netmap.NewPlacementPolicy() // get placement policy from string
-////
-////	permissions := acl.PublicBasicRule
-////	//acl.ParseBasicACL(aclString) // get acl from string argument
-////
-////	cnr := container.New(
-////		container.WithPolicy(placementPolicy),
-////		container.WithOwnerID(ownerID),
-////		container.WithCustomBasicACL(permissions),
-////	)
-////
-////	//attributes := container.Attributes{} // get attributes from string argument
-////	//cnr.SetAttributes(attributes)
-////
-////	var prmContainerPut neofsclient.PrmContainerPut
-////	prmContainerPut.SetContainer(*cnr)
-////
-////	cnrResponse, err := fsCli.ContainerPut(ctx, prmContainerPut)
-////	if err != nil {
-////		panic(err)
-////	}
-////
-////	containerID := cnrResponse.ID().String()
-////	cstr := C.CString(containerID)
-////	return cstr
-////}
-//
-//// old code
-//////export NewContainerPutRequest
-////func NewContainerPutRequest(key *C.char, v2Container *C.char) *C.char {
-////	privKey := GetECDSAPrivKey(key)
-////
-////	cnr, err := getV2ContainerFromC(v2Container)
-////	if err != nil {
-////		panic("could not get container from v2")
-////	}
-////	if cnr.Version() == nil {
-////		cnr.SetVersion(version.Current())
-////	}
-////	_, err = cnr.NonceUUID()
-////	if err != nil {
-////		rand, err := uuid.NewRandom()
-////		if err != nil {
-////			panic("can't create new random " + err.Error())
-////		}
-////		cnr.SetNonceUUID(rand)
-////	}
-////	if cnr.BasicACL() == 0 {
-////		cnr.SetBasicACL(acl.PrivateBasicRule)
-////	}
-////
-////	// form request body
-////	reqBody := new(v2container.PutRequestBody)
-////	reqBody.SetContainer(cnr.ToV2())
-////
-////	// sign cnr
-////	signWrapper := signature.StableMarshalerWrapper{SM: reqBody.GetContainer()}
-////	err = sigutil.SignDataWithHandler(privKey, signWrapper, func(key []byte, sig []byte) {
-////		containerSignature := new(refs.Signature)
-////		containerSignature.SetKey(key)
-////		containerSignature.SetSign(sig)
-////		reqBody.SetSignature(containerSignature)
-////	}, sigutil.SignWithRFC6979())
-////	die(err)
-////
-////	// form meta header
-////	var meta v2session.RequestMetaHeader
-////	meta.SetSessionToken(cnr.SessionToken().ToV2())
-////
-////	// form request
-////	var req v2container.PutRequest
-////	req.SetBody(reqBody)
-////
-////	// Prepare Meta Header
-////	// TODO: Check meta header params and set them accordingly
-////	// 	i.e., ttl, version, network magic
-////	req.SetMetaHeader(&meta)
-////
-////	prepareMetaHeader(&req)
-////
-////	pr := getRequestToSigned(&req)
-////
-////	err = signature.SignServiceMessage(privKey, pr)
-////	die(err)
-////
-////	jsonAfter, err := message.MarshalJSON(pr)
-////	die(err)
-////
-////	cstr := C.CString(string(jsonAfter))
-////
-////	return cstr
-////}
-//
-////endregion container old
+
+//endregion container

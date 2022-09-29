@@ -17,6 +17,8 @@ import (
 	"github.com/AxLabs/neofs-api-shared-lib/response"
 )
 
+// region client
+
 //export CreateClient
 func CreateClient(privateKey *C.char, neofsEndpoint *C.char) C.pointerResponse {
 	privKey := GetECDSAPrivKey(privateKey)
@@ -24,9 +26,11 @@ func CreateClient(privateKey *C.char, neofsEndpoint *C.char) C.pointerResponse {
 	return responseToC(client.CreateClient(privKey, endpoint))
 }
 
+// endregion client
+// region accounting
+
 //export GetBalance
 func GetBalance(clientID *C.char, publicKey *C.char) C.pointerResponse {
-
 	id, err := uuidToGo(clientID)
 	if err != nil {
 		return responseToC(response.Error(err))
@@ -37,6 +41,9 @@ func GetBalance(clientID *C.char, publicKey *C.char) C.pointerResponse {
 	}
 	return responseToC(accounting.GetBalance(id, key))
 }
+
+// endregion accounting
+// region netmap
 
 //export GetEndpoint
 func GetEndpoint(clientID *C.char) C.pointerResponse {
@@ -56,13 +63,17 @@ func GetNetworkInfo(clientID *C.char) C.pointerResponse {
 	return responseToC(netmap.GetNetworkInfo(id))
 }
 
+// endregion netmap
+// region container
+
 //export PutContainer
 func PutContainer(clientID *C.char, v2Container *C.char) C.response {
-	c, err := GetClient(clientID)
+	sdkContainer, err := getContainerFromC(v2Container)
 	if err != nil {
 		return stringResponseToC(response.StringError(err))
 	}
-	sdkContainer, err := getContainerFromC(v2Container)
+
+	c, err := GetClient(clientID)
 	if err != nil {
 		return stringResponseToC(response.StringError(err))
 	}
@@ -71,16 +82,50 @@ func PutContainer(clientID *C.char, v2Container *C.char) C.response {
 
 //export GetContainer
 func GetContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
-	c, err := GetClient(clientID)
-	if err != nil {
-		return responseToC(response.Error(err))
-	}
 	cid, err := getContainerIDFromC(containerID)
 	if err != nil {
 		return responseToC(response.Error(err))
 	}
+
+	c, err := GetClient(clientID)
 	if err != nil {
 		return responseToC(response.Error(err))
 	}
 	return responseToC(container.GetContainer(c, cid))
 }
+
+//export DeleteContainer
+func DeleteContainer(clientID *C.char, containerID *C.char) C.pointerResponse {
+	cid, err := getContainerIDFromC(containerID)
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
+
+	c, err := GetClient(clientID)
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
+	container.DeleteContainer(c, cid)
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
+	return responseToC(response.NewBoolean(true))
+}
+
+//export ListContainer
+func ListContainer(clientID *C.char, ownerPubKey *C.char) C.pointerResponse {
+	userID, err := UserIDFromPublicKey(ownerPubKey)
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
+	c, err := GetClient(clientID)
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
+	return responseToC(container.ListContainer(c, userID))
+}
+
+// endregion container
+// region object
+
+// endregion object

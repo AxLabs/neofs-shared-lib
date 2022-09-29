@@ -103,3 +103,13 @@ func getContainerIDFromC(containerID *C.char) (*cid.ID, error) {
 	}
 	return id, nil
 }
+
+//func getSessionTokenFromC(sessionToken *C.char) (*session.Container, error) {
+//	token := new(session.Container)
+//
+//	err := token.Unmarshal([]byte(C.GoString(sessionToken)))
+//	if err != nil {
+//		return nil, err
+//	}
+//	return token, nil
+//}
