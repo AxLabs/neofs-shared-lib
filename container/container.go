@@ -27,7 +27,7 @@ AnnounceUsedSpace
 */
 
 func PutContainer(neofsClient *client.NeoFSClient, cnr *container.Container) *response.StringResponse {
-	ctx := context.TODO()
+	ctx := context.Background()
 
 	var prmContainerPut neofsclient.PrmContainerPut
 	prmContainerPut.SetContainer(*cnr)
