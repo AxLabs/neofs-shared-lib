@@ -40,9 +40,6 @@ func GetBalance(clientID *uuid.UUID, id *user.ID) *response.PointerResponse {
 	}
 
 	amount := resBalanceGet.Amount()
-	if amount == nil {
-		return response.Error(err)
-	}
 
 	var v2 v2accounting.Decimal
 	amount.WriteToV2(&v2)

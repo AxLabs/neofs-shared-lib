@@ -3,7 +3,6 @@ package netmap
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"github.com/AxLabs/neofs-api-shared-lib/client"
 	"github.com/AxLabs/neofs-api-shared-lib/response"
 	"github.com/google/uuid"
@@ -97,13 +96,10 @@ func GetNetworkInfo(clientID *uuid.UUID) *response.PointerResponse {
 		return response.StatusResponse()
 	}
 	info := resNetworkInfo.Info()
-	if info == nil {
-		return response.Error(fmt.Errorf("could not get network info of endpoint"))
-	}
 
 	var v2 v2netmap.NetworkInfo
 	info.WriteToV2(&v2)
 	bytes := v2.StableMarshal(nil)
 
-	return response.New(reflect.TypeOf(*info), bytes)
+	return response.New(reflect.TypeOf(info), bytes)
 }
