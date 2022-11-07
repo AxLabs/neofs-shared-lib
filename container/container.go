@@ -3,6 +3,7 @@ package container
 import "C"
 import (
 	"context"
+	"encoding/json"
 	"github.com/AxLabs/neofs-api-shared-lib/client"
 	"github.com/AxLabs/neofs-api-shared-lib/response"
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
@@ -32,7 +33,8 @@ func PutContainer(neofsClient *client.NeoFSClient, cnr *container.Container) *re
 	var prmContainerPut neofsclient.PrmContainerPut
 	prmContainerPut.SetContainer(*cnr)
 
-	resContainerPut, err := neofsClient.LockAndGet().ContainerPut(ctx, prmContainerPut)
+	client := neofsClient.LockAndGet()
+	resContainerPut, err := client.ContainerPut(ctx, prmContainerPut)
 	neofsClient.Unlock()
 	if err != nil {
 		return response.StringError(err)
@@ -42,7 +44,7 @@ func PutContainer(neofsClient *client.NeoFSClient, cnr *container.Container) *re
 		return response.StringStatusResponse()
 	}
 
-	containerID := *resContainerPut.ID()
+	containerID := resContainerPut.ID()
 	return response.NewString(reflect.TypeOf(containerID), containerID.String())
 }
 
@@ -122,13 +124,13 @@ func deleteContainer(neofsClient *client.NeoFSClient, containerID *cid.ID, sessi
 }
 
 func ListContainer(neofsClient *client.NeoFSClient, userID *user.ID) *response.PointerResponse {
-	client := neofsClient.LockAndGet()
 	ctx := context.Background()
 
 	var prmContainerList neofsclient.PrmContainerList
 	prmContainerList.SetAccount(*userID)
 	//prmContainerList.WithXHeaders()
 
+	client := neofsClient.LockAndGet()
 	resContainerList, err := client.ContainerList(ctx, prmContainerList)
 	neofsClient.Unlock()
 	if err != nil {
@@ -139,17 +141,28 @@ func ListContainer(neofsClient *client.NeoFSClient, userID *user.ID) *response.P
 		return response.StatusResponse()
 	}
 
-	containerIDs := resContainerList.Containers()
-	ids := parseContainerIDs(containerIDs)
-	return response.New(reflect.TypeOf(containerIDs), ids)
+	bytes, err := buildContainerListResponse(resContainerList)
+	if err != nil {
+		return response.Error(err)
+	}
+	return response.New(reflect.TypeOf(ListResponse{}), bytes)
 }
 
-func parseContainerIDs(containerIDList []cid.ID) []byte {
-	bytes := make([]byte, 0)
-	for _, id := range containerIDList {
-		bytes = append(bytes[:], []byte(id.EncodeToString())...)
+func buildContainerListResponse(resContainerList *neofsclient.ResContainerList) ([]byte, error) {
+	ids := make([]string, len(resContainerList.Containers()))
+	for i, ctr := range resContainerList.Containers() {
+		ids[i] = ctr.EncodeToString()
 	}
-	return bytes
+	listResponse := ListResponse{Containers: ids}
+	bytes, err := json.Marshal(listResponse)
+	if err != nil {
+		return nil, err
+	}
+	return bytes, nil
+}
+
+type ListResponse struct {
+	Containers []string `json:"containers"`
 }
 
 ////export SetExtendedACL

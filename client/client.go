@@ -1,6 +1,5 @@
 package client
 
-import "C"
 import (
 	"crypto/ecdsa"
 	"fmt"

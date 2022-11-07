@@ -4,7 +4,6 @@ import (
 	"context"
 	"github.com/AxLabs/neofs-api-shared-lib/client"
 	"github.com/AxLabs/neofs-api-shared-lib/response"
-	"github.com/google/uuid"
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	neofsclient "github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
@@ -17,18 +16,14 @@ import (
 Balance
 */
 
-func GetBalance(clientID *uuid.UUID, id *user.ID) *response.PointerResponse {
+func GetBalance(neofsClient *client.NeoFSClient, id *user.ID) *response.PointerResponse {
 	ctx := context.Background()
 
 	var prmBalanceGet neofsclient.PrmBalanceGet
-	//id, err := main.UserIDFromPublicKey(publicKey)
 	prmBalanceGet.SetAccount(*id)
 
-	neofsClient, err := client.GetClient(clientID)
-	if err != nil {
-		return response.ClientError()
-	}
-	resBalanceGet, err := neofsClient.LockAndGet().BalanceGet(ctx, prmBalanceGet)
+	client := neofsClient.LockAndGet()
+	resBalanceGet, err := client.BalanceGet(ctx, prmBalanceGet)
 	neofsClient.Unlock()
 	if err != nil {
 		return response.Error(err)
@@ -40,9 +35,6 @@ func GetBalance(clientID *uuid.UUID, id *user.ID) *response.PointerResponse {
 	}
 
 	amount := resBalanceGet.Amount()
-	if amount == nil {
-		return response.Error(err)
-	}
 
 	var v2 v2accounting.Decimal
 	amount.WriteToV2(&v2)
