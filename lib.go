@@ -10,11 +10,15 @@ package main
 */
 import "C"
 import (
+	"bytes"
+	"fmt"
 	"github.com/AxLabs/neofs-api-shared-lib/accounting"
 	"github.com/AxLabs/neofs-api-shared-lib/client"
 	"github.com/AxLabs/neofs-api-shared-lib/container"
 	"github.com/AxLabs/neofs-api-shared-lib/netmap"
+	"github.com/AxLabs/neofs-api-shared-lib/object"
 	"github.com/AxLabs/neofs-api-shared-lib/response"
+	"unsafe"
 )
 
 // region client
@@ -127,5 +131,83 @@ func ListContainer(clientID *C.char, ownerPubKey *C.char) C.pointerResponse {
 
 // endregion container
 // region object
+
+////export UploadFile
+//func UploadFile(clientID *C.char, fileBytes *C.char) C.pointerResponse {
+//	c, err := GetClient(clientID)
+//	if err != nil {
+//		return responseToC(response.Error(err))
+//	}
+//	prm := UploadFilePrm{}
+//	err = json.Unmarshal(fileBytes, &prm)
+//	if err != nil {
+//		return responseToC(response.Error(err))
+//	}
+//	return responseToC(object.UploadFile(c, prm))
+//}
+//
+//type UploadFilePrm struct {
+//	prm1 string
+//	prm2 string
+//}
+
+//export CreateObjectNoAttrs
+func CreateObjectNoAttrs(clientID *C.char, fileBytes unsafe.Pointer, fileSize C.int, sessionSignerPrivKey *C.char,
+	containerID *C.char) C.response {
+	return CreateObject(clientID, fileBytes, fileSize, sessionSignerPrivKey, containerID, nil, nil)
+}
+
+// seems to work
+//export CreateObject
+func CreateObject(clientID *C.char, fileBytes unsafe.Pointer, fileSize C.int, sessionSignerPrivKey *C.char,
+	containerID *C.char, attributeKey *C.char, attributeValue *C.char) C.response {
+
+	readBytes := C.GoBytes(fileBytes, fileSize)
+	fmt.Println(string(readBytes))
+
+	c, err := GetClient(clientID)
+	if err != nil {
+		return stringResponseToC(response.StringError(err))
+	}
+	reader := bytes.NewReader(readBytes)
+	fmt.Println("reader initialized")
+	privKey := GetECDSAPrivKey(sessionSignerPrivKey)
+	cid, err := getContainerIDFromC(containerID)
+	if err != nil {
+		return stringResponseToC(response.StringError(err))
+	}
+	if attributeKey != nil {
+		key := C.GoString(attributeKey)
+		value := C.GoString(attributeValue)
+		var attributes [][2]string
+		attributes = append(attributes, [2]string{key, value})
+		fmt.Println("attributes initialized")
+	}
+
+	return stringResponseToC(object.CreateObject(c, *privKey, *cid, nil, reader))
+}
+
+//ReadObject(neofsClient *client.NeoFSClient, containerID cid.ID, objectID oid.ID,
+//signer ecdsa.PrivateKey) *response.PointerResponse {
+
+// object not found
+//export ReadObject
+func ReadObject(clientID *C.char, containerID *C.char, objectID *C.char, signer *C.char) C.pointerResponse {
+	c, err := GetClient(clientID)
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
+	cid, err := getContainerIDFromC(containerID)
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
+	oid, err := getObjectIDFromC(objectID)
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
+	privKey := GetECDSAPrivKey(signer)
+
+	return responseToC(object.ReadObject(c, *cid, *oid, *privKey))
+}
 
 // endregion object

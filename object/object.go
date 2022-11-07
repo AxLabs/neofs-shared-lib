@@ -1,5 +1,194 @@
 package object
 
+import (
+	"bytes"
+	"context"
+	"crypto/ecdsa"
+	"errors"
+	"fmt"
+	"github.com/AxLabs/neofs-api-shared-lib/response"
+	"io"
+	"math"
+	"reflect"
+
+	"github.com/AxLabs/neofs-api-shared-lib/client"
+	"github.com/google/uuid"
+	neofsclient "github.com/nspcc-dev/neofs-sdk-go/client"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
+)
+
+func CreateObject(neofsClient *client.NeoFSClient, sessionSigner ecdsa.PrivateKey,
+	containerID cid.ID, attributes [][2]string, payload io.Reader) *response.StringResponse {
+
+	// How do we pass more attributes to C (dynamic number of attributes)?
+
+	ctx := context.Background()
+
+	// region open session
+
+	var prmSession neofsclient.PrmSessionCreate
+	// send request to open the session for object writing
+	const expirationSession = math.MaxUint64
+	prmSession.SetExp(expirationSession)
+	prmSession.UseKey(sessionSigner)
+
+	client := neofsClient.LockAndGet()
+	resSession, err := client.SessionCreate(ctx, prmSession)
+	if err != nil {
+		return response.StringError(err)
+		//fmt.Errorf("open session with the remote node: %w", err)
+	}
+	neofsClient.Unlock()
+
+	// decode session ID
+	var idSession uuid.UUID
+
+	err = idSession.UnmarshalBinary(resSession.ID())
+	if err != nil {
+		return response.StringError(err)
+		//fmt.Errorf("invalid session ID in session response: %w", err)
+	}
+
+	// decode session public key
+	var keySession neofsecdsa.PublicKey
+
+	err = keySession.Decode(resSession.PublicKey())
+	if err != nil {
+		return response.StringError(err)
+		//fmt.Errorf("invalid session public key in session response: %w", err)
+	}
+
+	// form token of the object session
+	var tokenSession session.Object
+	tokenSession.SetID(idSession)
+	tokenSession.SetExp(expirationSession)
+	tokenSession.BindContainer(containerID) // prm.Container
+	tokenSession.ForVerb(session.VerbObjectPut)
+	tokenSession.SetAuthKey(&keySession)
+
+	// sign the session token
+	err = tokenSession.Sign(sessionSigner)
+	if err != nil {
+		return response.StringError(err) //fmt.Errorf("sign session token: %w", err)
+	}
+
+	fmt.Println("session created")
+
+	// endregion open session
+
+	// pre: tokenSession, signer, context
+	var prmPutInit neofsclient.PrmObjectPutInit
+	prmPutInit.WithinSession(tokenSession)
+	prmPutInit.UseKey(sessionSigner)
+
+	streamObj, err := client.ObjectPutInit(ctx, prmPutInit)
+	if err != nil {
+		return response.StringError(err)
+	}
+
+	fmt.Println("object put initialized")
+
+	var idCreator user.ID
+	user.IDFromKey(&idCreator, sessionSigner.PublicKey)
+	var obj object.Object
+	obj.SetContainerID(containerID)
+	obj.SetOwnerID(&idCreator)
+
+	// add attributes
+	if attributes != nil {
+		attrs := make([]object.Attribute, len(attributes))
+
+		for i := range attributes {
+			attrs[i].SetKey(attributes[i][0])
+			attrs[i].SetValue(attributes[i][1])
+		}
+
+		obj.SetAttributes(attrs...)
+	}
+
+	v, set := obj.ID()
+	if !set {
+		fmt.Println("no id set in object header")
+	} else {
+		fmt.Println("id set in object header")
+	}
+	fmt.Println("object id: " + v.String())
+
+	fmt.Println("v2 object id: " + string(obj.ToV2().GetObjectID().GetValue()))
+
+	if streamObj.WriteHeader(obj) && payload != nil {
+		var n int
+		buf := make([]byte, 100<<10)
+		for {
+			n, err = payload.Read(buf)
+			if n > 0 {
+				if !streamObj.WritePayloadChunk(buf[:n]) {
+					break
+				}
+				continue
+			}
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return response.StringError(err) // read payload
+		}
+	}
+
+	fmt.Println("stream obj written")
+
+	res, err := streamObj.Close()
+	if err != nil {
+		return response.StringError(err)
+	}
+	objectID := res.StoredObjectID()
+	fmt.Println(objectID.String())
+	return response.NewString(reflect.TypeOf(oid.ID{}), objectID.EncodeToString())
+}
+
+func ReadObject(neofsClient *client.NeoFSClient, containerID cid.ID, objectID oid.ID,
+	signer ecdsa.PrivateKey) *response.PointerResponse {
+
+	client := neofsClient.LockAndGet()
+	ctx := context.Background()
+
+	var prmGet neofsclient.PrmObjectGet
+	prmGet.FromContainer(containerID)
+	prmGet.ByID(objectID)
+	//prmGet.UseKey(signerDefault)
+	prmGet.UseKey(signer)
+
+	fmt.Println("prm set to read")
+
+	streamObj, err := client.ObjectGetInit(ctx, prmGet)
+	if err != nil {
+		return response.Error(err)
+	}
+	fmt.Println("streamObj initialized")
+	var b bytes.Buffer
+	_ = io.Writer(&b)
+	//foo := bufio.NewWriter(&b)
+	if streamObj.ReadHeader(new(object.Object)) {
+		fmt.Println("read header success")
+		_, err = io.Copy(&b, streamObj)
+		fmt.Println("io copy success")
+		if err != nil {
+			return response.Error(err)
+		}
+	}
+	fmt.Println("header written")
+
+	_, err = streamObj.Close()
+	if err != nil {
+		return response.Error(err)
+	}
+	return response.New(reflect.TypeOf(object.Object{}), b.Bytes())
+}
+
 //import (
 //	"context"
 //	"fmt"
@@ -37,7 +226,8 @@ package object
 //	if err != nil {
 //		return response.PointerResponseClientError()
 //	}
-//	w, err := neofsClient.LockAndGet().ObjectPutInit(ctx, prmObjectPutInit)
+//  client := neofsClient.LockAndGet()
+//	w, err := client.ObjectPutInit(ctx, prmObjectPutInit)
 //	neofsClient.Unlock()
 //	if err != nil {
 //		return response.PointerResponseError(err.Error())
