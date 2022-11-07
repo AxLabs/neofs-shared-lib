@@ -33,7 +33,8 @@ func PutContainer(neofsClient *client.NeoFSClient, cnr *container.Container) *re
 	var prmContainerPut neofsclient.PrmContainerPut
 	prmContainerPut.SetContainer(*cnr)
 
-	resContainerPut, err := neofsClient.LockAndGet().ContainerPut(ctx, prmContainerPut)
+	client := neofsClient.LockAndGet()
+	resContainerPut, err := client.ContainerPut(ctx, prmContainerPut)
 	neofsClient.Unlock()
 	if err != nil {
 		return response.StringError(err)
@@ -123,13 +124,13 @@ func deleteContainer(neofsClient *client.NeoFSClient, containerID *cid.ID, sessi
 }
 
 func ListContainer(neofsClient *client.NeoFSClient, userID *user.ID) *response.PointerResponse {
-	client := neofsClient.LockAndGet()
 	ctx := context.Background()
 
 	var prmContainerList neofsclient.PrmContainerList
 	prmContainerList.SetAccount(*userID)
 	//prmContainerList.WithXHeaders()
 
+	client := neofsClient.LockAndGet()
 	resContainerList, err := client.ContainerList(ctx, prmContainerList)
 	neofsClient.Unlock()
 	if err != nil {

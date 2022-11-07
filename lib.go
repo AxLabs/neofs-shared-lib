@@ -31,7 +31,7 @@ func CreateClient(privateKey *C.char, neofsEndpoint *C.char) C.pointerResponse {
 
 //export GetBalance
 func GetBalance(clientID *C.char, publicKey *C.char) C.pointerResponse {
-	id, err := uuidToGo(clientID)
+	c, err := GetClient(clientID)
 	if err != nil {
 		return responseToC(response.Error(err))
 	}
@@ -39,7 +39,7 @@ func GetBalance(clientID *C.char, publicKey *C.char) C.pointerResponse {
 	if err != nil {
 		return responseToC(response.Error(err))
 	}
-	return responseToC(accounting.GetBalance(id, key))
+	return responseToC(accounting.GetBalance(c, key))
 }
 
 // endregion accounting
@@ -47,20 +47,20 @@ func GetBalance(clientID *C.char, publicKey *C.char) C.pointerResponse {
 
 //export GetEndpoint
 func GetEndpoint(clientID *C.char) C.pointerResponse {
-	id, err := uuidToGo(clientID)
+	c, err := GetClient(clientID)
 	if err != nil {
 		return responseToC(response.Error(err))
 	}
-	return responseToC(netmap.GetEndpoint(id))
+	return responseToC(netmap.GetEndpoint(c))
 }
 
 //export GetNetworkInfo
 func GetNetworkInfo(clientID *C.char) C.pointerResponse {
-	id, err := uuidToGo(clientID)
+	c, err := GetClient(clientID)
 	if err != nil {
 		return responseToC(response.Error(err))
 	}
-	return responseToC(netmap.GetNetworkInfo(id))
+	return responseToC(netmap.GetNetworkInfo(c))
 }
 
 // endregion netmap

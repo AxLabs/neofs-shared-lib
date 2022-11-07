@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"github.com/AxLabs/neofs-api-shared-lib/client"
 	"github.com/AxLabs/neofs-api-shared-lib/response"
-	"github.com/google/uuid"
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	neofsclient "github.com/nspcc-dev/neofs-sdk-go/client"
@@ -20,15 +19,12 @@ EndpointInfo
 NetMapSnapshot (only exists >v1.0.0-rc.6)
 */
 
-func GetEndpoint(clientID *uuid.UUID) *response.PointerResponse {
+func GetEndpoint(neofsClient *client.NeoFSClient) *response.PointerResponse {
 	ctx := context.Background()
 	var prmEndpointInfo neofsclient.PrmEndpointInfo
 
-	neofsClient, err := client.GetClient(clientID)
-	if err != nil {
-		return response.Error(err)
-	}
-	resEndpointInfo, err := neofsClient.LockAndGet().EndpointInfo(ctx, prmEndpointInfo)
+	client := neofsClient.LockAndGet()
+	resEndpointInfo, err := client.EndpointInfo(ctx, prmEndpointInfo)
 	neofsClient.Unlock()
 	if err != nil {
 		return response.Error(err)
@@ -76,16 +72,13 @@ type EndpointResponse struct {
 	LatestVersion string `json:"version.Version"`
 }
 
-func GetNetworkInfo(clientID *uuid.UUID) *response.PointerResponse {
+func GetNetworkInfo(neofsClient *client.NeoFSClient) *response.PointerResponse {
 	ctx := context.Background()
 	var prmNetworkInfo neofsclient.PrmNetworkInfo
 	//prmNetworkInfo.WithXHeaders()
 
-	neofsClient, err := client.GetClient(clientID)
-	if err != nil {
-		return response.Error(err)
-	}
-	resNetworkInfo, err := neofsClient.LockAndGet().NetworkInfo(ctx, prmNetworkInfo)
+	client := neofsClient.LockAndGet()
+	resNetworkInfo, err := client.NetworkInfo(ctx, prmNetworkInfo)
 	neofsClient.Unlock()
 	if err != nil {
 		return response.Error(err)
