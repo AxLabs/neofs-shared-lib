@@ -2,6 +2,8 @@ module github.com/AxLabs/neofs-api-shared-lib
 
 go 1.16
 
+replace github.com/nspcc-dev/neofs-sdk-go => github.com/cthulhu-rider/neofs-sdk-go v0.0.0-20221107175856-e14177122916
+
 require (
 	github.com/google/uuid v1.3.0
 	github.com/nspcc-dev/neo-go v0.99.4

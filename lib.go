@@ -151,16 +151,16 @@ func ListContainer(clientID *C.char, ownerPubKey *C.char) C.pointerResponse {
 //	prm2 string
 //}
 
-//export CreateObjectNoAttrs
-func CreateObjectNoAttrs(clientID *C.char, fileBytes unsafe.Pointer, fileSize C.int, sessionSignerPrivKey *C.char,
-	containerID *C.char) C.response {
-	return CreateObject(clientID, fileBytes, fileSize, sessionSignerPrivKey, containerID, nil, nil)
+//export CreateObjectWithoutAttributes
+func CreateObjectWithoutAttributes(clientID *C.char, containerID *C.char, fileBytes unsafe.Pointer, fileSize C.int,
+	sessionSignerPrivKey *C.char) C.response {
+	return CreateObject(clientID, containerID, fileBytes, fileSize, sessionSignerPrivKey, nil, nil)
 }
 
 // seems to work
 //export CreateObject
-func CreateObject(clientID *C.char, fileBytes unsafe.Pointer, fileSize C.int, sessionSignerPrivKey *C.char,
-	containerID *C.char, attributeKey *C.char, attributeValue *C.char) C.response {
+func CreateObject(clientID *C.char, containerID *C.char, fileBytes unsafe.Pointer, fileSize C.int, sessionSignerPrivKey *C.char,
+	attributeKey *C.char, attributeValue *C.char) C.response {
 
 	readBytes := C.GoBytes(fileBytes, fileSize)
 	fmt.Println(string(readBytes))
@@ -176,15 +176,15 @@ func CreateObject(clientID *C.char, fileBytes unsafe.Pointer, fileSize C.int, se
 	if err != nil {
 		return stringResponseToC(response.StringError(err))
 	}
+	var attributes [][2]string
 	if attributeKey != nil {
 		key := C.GoString(attributeKey)
 		value := C.GoString(attributeValue)
-		var attributes [][2]string
 		attributes = append(attributes, [2]string{key, value})
 		fmt.Println("attributes initialized")
 	}
 
-	return stringResponseToC(object.CreateObject(c, *privKey, *cid, nil, reader))
+	return stringResponseToC(object.CreateObject(c, *cid, *privKey, attributes, reader))
 }
 
 //ReadObject(neofsClient *client.NeoFSClient, containerID cid.ID, objectID oid.ID,

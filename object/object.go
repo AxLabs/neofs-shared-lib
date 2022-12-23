@@ -22,8 +22,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-func CreateObject(neofsClient *client.NeoFSClient, sessionSigner ecdsa.PrivateKey,
-	containerID cid.ID, attributes [][2]string, payload io.Reader) *response.StringResponse {
+func CreateObject(neofsClient *client.NeoFSClient, containerID cid.ID, sessionSigner ecdsa.PrivateKey,
+	attributes [][2]string, payload io.Reader) *response.StringResponse {
 
 	// How do we pass more attributes to C (dynamic number of attributes)?
 
