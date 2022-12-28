@@ -11,7 +11,6 @@ package main
 import "C"
 import (
 	"bytes"
-	"fmt"
 	"github.com/AxLabs/neofs-api-shared-lib/accounting"
 	"github.com/AxLabs/neofs-api-shared-lib/client"
 	"github.com/AxLabs/neofs-api-shared-lib/container"
@@ -122,6 +121,7 @@ func ListContainer(clientID *C.char, ownerPubKey *C.char) C.pointerResponse {
 	if err != nil {
 		return responseToC(response.Error(err))
 	}
+
 	c, err := GetClient(clientID)
 	if err != nil {
 		return responseToC(response.Error(err))
@@ -163,14 +163,8 @@ func CreateObject(clientID *C.char, containerID *C.char, fileBytes unsafe.Pointe
 	attributeKey *C.char, attributeValue *C.char) C.response {
 
 	readBytes := C.GoBytes(fileBytes, fileSize)
-	fmt.Println(string(readBytes))
 
-	c, err := GetClient(clientID)
-	if err != nil {
-		return stringResponseToC(response.StringError(err))
-	}
 	reader := bytes.NewReader(readBytes)
-	fmt.Println("reader initialized")
 	privKey := GetECDSAPrivKey(sessionSignerPrivKey)
 	cid, err := getContainerIDFromC(containerID)
 	if err != nil {
@@ -181,22 +175,20 @@ func CreateObject(clientID *C.char, containerID *C.char, fileBytes unsafe.Pointe
 		key := C.GoString(attributeKey)
 		value := C.GoString(attributeValue)
 		attributes = append(attributes, [2]string{key, value})
-		fmt.Println("attributes initialized")
 	}
 
+	c, err := GetClient(clientID)
+	if err != nil {
+		return stringResponseToC(response.StringError(err))
+	}
 	return stringResponseToC(object.CreateObject(c, *cid, *privKey, attributes, reader))
 }
 
 //ReadObject(neofsClient *client.NeoFSClient, containerID cid.ID, objectID oid.ID,
 //signer ecdsa.PrivateKey) *response.PointerResponse {
 
-// object not found
 //export ReadObject
 func ReadObject(clientID *C.char, containerID *C.char, objectID *C.char, signer *C.char) C.pointerResponse {
-	c, err := GetClient(clientID)
-	if err != nil {
-		return responseToC(response.Error(err))
-	}
 	cid, err := getContainerIDFromC(containerID)
 	if err != nil {
 		return responseToC(response.Error(err))
@@ -207,7 +199,30 @@ func ReadObject(clientID *C.char, containerID *C.char, objectID *C.char, signer 
 	}
 	privKey := GetECDSAPrivKey(signer)
 
+	c, err := GetClient(clientID)
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
 	return responseToC(object.ReadObject(c, *cid, *oid, *privKey))
+}
+
+//export DeleteObject
+func DeleteObject(clientID *C.char, containerID *C.char, objectID *C.char, signer *C.char) C.response {
+	cid, err := getContainerIDFromC(containerID)
+	if err != nil {
+		return stringResponseToC(response.StringError(err))
+	}
+	oid, err := getObjectIDFromC(objectID)
+	if err != nil {
+		return stringResponseToC(response.StringError(err))
+	}
+	privKey := GetECDSAPrivKey(signer)
+
+	c, err := GetClient(clientID)
+	if err != nil {
+		return stringResponseToC(response.StringError(err))
+	}
+	return stringResponseToC(object.DeleteObject(c, *cid, *oid, *privKey))
 }
 
 // endregion object

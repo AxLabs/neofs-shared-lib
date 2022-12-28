@@ -49,13 +49,13 @@ func PutContainer(neofsClient *client.NeoFSClient, cnr *container.Container) *re
 }
 
 func GetContainer(neofsClient *client.NeoFSClient, containerID *cid.ID) *response.PointerResponse {
-	client := neofsClient.LockAndGet()
 	ctx := context.Background()
 
 	var prmContainerGet neofsclient.PrmContainerGet
 	prmContainerGet.SetContainer(*containerID)
 	//prmContainerGet.WithXHeaders()
 
+	client := neofsClient.LockAndGet()
 	resContainerGet, err := client.ContainerGet(ctx, prmContainerGet)
 	neofsClient.Unlock()
 
@@ -101,7 +101,6 @@ func DeleteContainer(neofsClient *client.NeoFSClient, containerID *cid.ID) *resp
 //}
 
 func deleteContainer(neofsClient *client.NeoFSClient, containerID *cid.ID, sessionToken *session.Container) *response.PointerResponse {
-	client := neofsClient.LockAndGet()
 	ctx := context.Background()
 
 	var prmContainerDelete neofsclient.PrmContainerDelete
@@ -111,11 +110,12 @@ func deleteContainer(neofsClient *client.NeoFSClient, containerID *cid.ID, sessi
 	}
 	//prmContainerDelete.WithXHeaders()
 
+	client := neofsClient.LockAndGet()
 	resContainerDelete, err := client.ContainerDelete(ctx, prmContainerDelete)
+	neofsClient.Unlock()
 	if err != nil {
 		return response.Error(err)
 	}
-	neofsClient.Unlock()
 
 	if !apistatus.IsSuccessful(resContainerDelete.Status()) {
 		return response.StatusResponse()

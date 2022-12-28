@@ -5,8 +5,8 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
-	"fmt"
 	"github.com/AxLabs/neofs-api-shared-lib/response"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"io"
 	"math"
 	"reflect"
@@ -39,11 +39,10 @@ func CreateObject(neofsClient *client.NeoFSClient, containerID cid.ID, sessionSi
 
 	client := neofsClient.LockAndGet()
 	resSession, err := client.SessionCreate(ctx, prmSession)
+	neofsClient.Unlock()
 	if err != nil {
 		return response.StringError(err)
-		//fmt.Errorf("open session with the remote node: %w", err)
 	}
-	neofsClient.Unlock()
 
 	// decode session ID
 	var idSession uuid.UUID
@@ -51,7 +50,6 @@ func CreateObject(neofsClient *client.NeoFSClient, containerID cid.ID, sessionSi
 	err = idSession.UnmarshalBinary(resSession.ID())
 	if err != nil {
 		return response.StringError(err)
-		//fmt.Errorf("invalid session ID in session response: %w", err)
 	}
 
 	// decode session public key
@@ -60,7 +58,6 @@ func CreateObject(neofsClient *client.NeoFSClient, containerID cid.ID, sessionSi
 	err = keySession.Decode(resSession.PublicKey())
 	if err != nil {
 		return response.StringError(err)
-		//fmt.Errorf("invalid session public key in session response: %w", err)
 	}
 
 	// form token of the object session
@@ -74,10 +71,8 @@ func CreateObject(neofsClient *client.NeoFSClient, containerID cid.ID, sessionSi
 	// sign the session token
 	err = tokenSession.Sign(sessionSigner)
 	if err != nil {
-		return response.StringError(err) //fmt.Errorf("sign session token: %w", err)
+		return response.StringError(err)
 	}
-
-	fmt.Println("session created")
 
 	// endregion open session
 
@@ -90,8 +85,6 @@ func CreateObject(neofsClient *client.NeoFSClient, containerID cid.ID, sessionSi
 	if err != nil {
 		return response.StringError(err)
 	}
-
-	fmt.Println("object put initialized")
 
 	var idCreator user.ID
 	user.IDFromKey(&idCreator, sessionSigner.PublicKey)
@@ -111,16 +104,6 @@ func CreateObject(neofsClient *client.NeoFSClient, containerID cid.ID, sessionSi
 		obj.SetAttributes(attrs...)
 	}
 
-	v, set := obj.ID()
-	if !set {
-		fmt.Println("no id set in object header")
-	} else {
-		fmt.Println("id set in object header")
-	}
-	fmt.Println("object id: " + v.String())
-
-	fmt.Println("v2 object id: " + string(obj.ToV2().GetObjectID().GetValue()))
-
 	if streamObj.WriteHeader(obj) && payload != nil {
 		var n int
 		buf := make([]byte, 100<<10)
@@ -139,21 +122,17 @@ func CreateObject(neofsClient *client.NeoFSClient, containerID cid.ID, sessionSi
 		}
 	}
 
-	fmt.Println("stream obj written")
-
 	res, err := streamObj.Close()
 	if err != nil {
 		return response.StringError(err)
 	}
 	objectID := res.StoredObjectID()
-	fmt.Println(objectID.String())
 	return response.NewString(reflect.TypeOf(oid.ID{}), objectID.EncodeToString())
 }
 
 func ReadObject(neofsClient *client.NeoFSClient, containerID cid.ID, objectID oid.ID,
 	signer ecdsa.PrivateKey) *response.PointerResponse {
 
-	client := neofsClient.LockAndGet()
 	ctx := context.Background()
 
 	var prmGet neofsclient.PrmObjectGet
@@ -162,31 +141,56 @@ func ReadObject(neofsClient *client.NeoFSClient, containerID cid.ID, objectID oi
 	//prmGet.UseKey(signerDefault)
 	prmGet.UseKey(signer)
 
-	fmt.Println("prm set to read")
-
+	client := neofsClient.LockAndGet()
 	streamObj, err := client.ObjectGetInit(ctx, prmGet)
+	neofsClient.Unlock()
 	if err != nil {
 		return response.Error(err)
 	}
-	fmt.Println("streamObj initialized")
 	var b bytes.Buffer
 	_ = io.Writer(&b)
-	//foo := bufio.NewWriter(&b)
 	if streamObj.ReadHeader(new(object.Object)) {
-		fmt.Println("read header success")
 		_, err = io.Copy(&b, streamObj)
-		fmt.Println("io copy success")
 		if err != nil {
 			return response.Error(err)
 		}
 	}
-	fmt.Println("header written")
 
 	_, err = streamObj.Close()
 	if err != nil {
 		return response.Error(err)
 	}
 	return response.New(reflect.TypeOf(object.Object{}), b.Bytes())
+}
+
+// DeleteObject marks an object for deletion from the container using NeoFS API protocol.
+// As a marker, a special unit called a tombstone is placed in the container.
+// It confirms the user's intent to delete the object, and is itself a container object.
+// Explicit deletion is done asynchronously, and is generally not guaranteed.
+func DeleteObject(neofsClient *client.NeoFSClient, containerID cid.ID, objectID oid.ID,
+	signer ecdsa.PrivateKey) *response.StringResponse {
+
+	ctx := context.Background()
+
+	var prmDelete neofsclient.PrmObjectDelete
+	prmDelete.FromContainer(containerID)
+	prmDelete.ByID(objectID)
+	//prmDelete.UseKey(signerDefault)
+	prmDelete.UseKey(signer)
+
+	client := neofsClient.LockAndGet()
+	res, err := client.ObjectDelete(ctx, prmDelete)
+	neofsClient.Unlock()
+	if err != nil {
+		return response.StringError(err)
+	}
+
+	res.Status()
+	if !apistatus.IsSuccessful(res.Status()) {
+		return response.StringStatusResponse()
+	}
+	tombstoneID := res.Tombstone()
+	return response.NewString(reflect.TypeOf(oid.ID{}), tombstoneID.EncodeToString())
 }
 
 //import (
