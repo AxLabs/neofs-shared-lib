@@ -1,8 +1,8 @@
-# v0.0.8
+# 0.0.8
 
 * Added methods to create, read and delete objects.
 
-# v0.0.7
+# 0.0.7
 
 * Upgraded neofs-sdk-go dependency to version `v1.0.0-rc.7`
 * Fixed method `ListContainer`
