@@ -21,6 +21,7 @@ import (
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"math/big"
 )
@@ -98,6 +99,15 @@ func getContainerFromC(v2Container *C.char) (*container.Container, error) {
 func getContainerIDFromC(containerID *C.char) (*cid.ID, error) {
 	id := new(cid.ID)
 	err := id.DecodeString(C.GoString(containerID))
+	if err != nil {
+		return nil, err
+	}
+	return id, nil
+}
+
+func getObjectIDFromC(objectID *C.char) (*oid.ID, error) {
+	id := new(oid.ID)
+	err := id.DecodeString(C.GoString(objectID))
 	if err != nil {
 		return nil, err
 	}
