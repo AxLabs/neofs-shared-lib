@@ -23,20 +23,27 @@ bash cross.sh
 
 The output, i.e., `.h` and `.so` files, will be placed in the `./libs` folder.
 
-# Supported Platforms and Archs
+# Platforms and Archs
 
-| Platform/Arch     | Supported |
-| :-------------    | :---------: |
-| linux/amd64       | ✅ |
-| linux/i386        | ⛔ |
-| linux/arm64       | ✅ |
-| linux/armv5       | ⛔ |
-| linux/armv6       | ⛔ |
-| linux/armv7       | ⛔ |
-| windows/amd64     | ✅ |
-| windows/386       | ✅ |
-| darwin/arm64      | ✅ |
-| darwin/amd64      | ✅ |
+| Platform/Arch | Supported | Tested |  OS Tested   |
+|:--------------|:---------:|:------:|:------------:|
+| linux/amd64   |     ✅     |   👍   | Ubuntu 22.04 |
+| linux/arm64   |     ✅     |   👎   | Ubuntu 22.04 |
+| linux/armv5   |     ⛔     |  N/A   |     N/A      |
+| linux/armv6   |     ⛔     |  N/A   |     N/A      |
+| linux/armv7   |     ⛔     |  N/A   |     N/A      |
+| windows/amd64 |     ✅     |   👍   |  Windows 11  |
+| windows/arm64 |     ✅     |   👎   |  Windows 11  |
+| windows/386   |     ✅     |   🫣   |     N/A      |
+| darwin/arm64  |     ✅     |   👍   |  MacOS 12.6  |
+| darwin/amd64  |     ✅     |   👍   |  MacOS 13.0  |
+
+Meaning:
+* ✅: yes, it's supported, yay!
+* ⛔: no release targeting the specific platform yet
+* 👍: yes, manually tested, meaning that the `.so` file could successfully be loaded in the platform/arch
+* 🫣: not tested yet...
+* 👎: manual tests failed, but more tests needs to be conducted.
 
 # References
 
