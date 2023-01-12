@@ -17,6 +17,7 @@ import (
 	"github.com/AxLabs/neofs-api-shared-lib/netmap"
 	"github.com/AxLabs/neofs-api-shared-lib/object"
 	"github.com/AxLabs/neofs-api-shared-lib/response"
+	"github.com/google/uuid"
 	"unsafe"
 )
 
@@ -27,6 +28,15 @@ func CreateClient(privateKey *C.char, neofsEndpoint *C.char) C.pointerResponse {
 	privKey := GetECDSAPrivKey(privateKey)
 	endpoint := toGoString(neofsEndpoint)
 	return responseToC(client.CreateClient(privKey, endpoint))
+}
+
+//export DeleteClient
+func DeleteClient(clientID *C.char) C.pointerResponse {
+	cliID, err := uuid.Parse(C.GoString(clientID))
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
+	return responseToC(client.DeleteClient(cliID))
 }
 
 // endregion client
@@ -157,7 +167,6 @@ func CreateObjectWithoutAttributes(clientID *C.char, containerID *C.char, fileBy
 	return CreateObject(clientID, containerID, fileBytes, fileSize, sessionSignerPrivKey, nil, nil)
 }
 
-// seems to work
 //export CreateObject
 func CreateObject(clientID *C.char, containerID *C.char, fileBytes unsafe.Pointer, fileSize C.int, sessionSignerPrivKey *C.char,
 	attributeKey *C.char, attributeValue *C.char) C.response {

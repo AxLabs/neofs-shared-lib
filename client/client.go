@@ -51,19 +51,6 @@ func (c *NeoFSClient) Unlock() {
 	c.mu.Unlock()
 }
 
-func GetClient(clientID *uuid.UUID) (*NeoFSClient, error) {
-	if neofsClientMap == nil {
-		return nil, fmt.Errorf("no clients present")
-	}
-	neofsClientMap.mu.Lock()
-	cli := neofsClientMap.clients[*clientID]
-	if cli == nil {
-		return nil, fmt.Errorf("no client present with id %v", clientID)
-	}
-	neofsClientMap.mu.Unlock()
-	return cli, nil
-}
-
 func CreateClient(privateKey *ecdsa.PrivateKey, neofsEndpoint string) *response.PointerResponse {
 	// Initialize client
 	newClient := neofsclient.Client{}
@@ -96,16 +83,24 @@ func CreateClient(privateKey *ecdsa.PrivateKey, neofsEndpoint string) *response.
 	return response.New(reflect.TypeOf(u), []byte(u.String()))
 }
 
-////export DeleteClient
-//func DeleteClient(clientID *C.char) C.PointerResponse {
-//	cliID, err := uuid.Parse(C.GoString(clientID))
-//	if err != nil {
-//		return PointerResponseError("could not parse provided client id")
-//	}
-//	deleted := neofsClients.delete(cliID)
-//	if !deleted {
-//		return PointerResponseError("could not delete client")
-//	}
-//	boolean := []byte{1}
-//	return PointerResponse(reflect.TypeOf(boolean), boolean)
-//}
+func GetClient(clientID *uuid.UUID) (*NeoFSClient, error) {
+	if neofsClientMap == nil {
+		return nil, fmt.Errorf("no clients present")
+	}
+	neofsClientMap.mu.Lock()
+	cli := neofsClientMap.clients[*clientID]
+	if cli == nil {
+		return nil, fmt.Errorf("no client present with id %v", clientID)
+	}
+	neofsClientMap.mu.Unlock()
+	return cli, nil
+}
+
+func DeleteClient(clientID uuid.UUID) *response.PointerResponse {
+	deleted := neofsClientMap.delete(clientID)
+	if !deleted {
+		return response.Error(fmt.Errorf("could not delete client"))
+	}
+	boolean := []byte{1}
+	return response.New(reflect.TypeOf(boolean), boolean)
+}
