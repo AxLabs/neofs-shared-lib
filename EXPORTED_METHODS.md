@@ -20,10 +20,10 @@ about all exported methods below (e.g., description, parameters, and return type
 - [Delete object](#delete-an-object)
 
 The structure of the responses in C is defined in the header file [`response.h`](./response.h). The
-type `response`
-reflects a response that holds a simple string value. In order to be able to parse it correctly, the
-type of the return value is returned besides the string. The type `responsePointer` represents a
-byte array return value. In order to parse this, it's size and type is provided besides the value.
+type `response` reflects a response that holds a simple string value. In order to be able to parse
+it correctly, the type of the return value is returned besides the string. The type`responsePointer`
+represents a byte array return value. In order to parse this, it's size and type is provided besides
+the value.
 
 <hr>
 
@@ -31,7 +31,7 @@ byte array return value. In order to parse this, it's size and type is provided 
 
 ### Create a client
 
-`CreateClient(privateKey *C.char, neofsEndpoint *C.char) C.pointerResponse`
+`pointerResponse CreateClient(char* privateKey, char* neofsEndpoint);`
 
 For all interactions with NeoFS, a client that connects to a GRPC endpoint of a NeoFS node is
 needed. For this, you can use the method `CreateClient()` with an endpoint to a NeoFS node and a
@@ -53,7 +53,7 @@ client is loaded from memory and used to send the corresponding request to the s
 
 ### Delete a client
 
-`DeleteClient(clientID *C.char) C.pointerResponse`
+`pointerResponse DeleteClient(char* clientID);`
 
 #### Parameters
 
@@ -69,7 +69,7 @@ client is loaded from memory and used to send the corresponding request to the s
 
 ### Get account balance
 
-`GetBalance(clientID *C.char, publicKey *C.char) C.pointerResponse`
+`pointerResponse GetBalance(char* clientID, char* publicKey);`
 
 This method gets the NeoFS balance the provided account has on the NeoFS smart contract on the Neo
 blockchain.
@@ -91,7 +91,7 @@ the [NeoFS API](https://github.com/nspcc-dev/neofs-api).
 
 ### Get endpoint information
 
-`GetEndpoint(clientID *C.char) C.pointerResponse`
+`pointerResponse GetEndpoint(char* clientID);`
 
 Gets information about the endpoint the client is interfacing with. Includes node information and
 what version is used in the node.
@@ -106,7 +106,7 @@ The return value is based on a JSON serialized type `EndpointResponse` (see sche
 
 ### Get network information
 
-`GetNetworkInfo(clientID *C.char) C.pointerResponse`
+`pointerResponse GetNetworkInfo(char* clientID);`
 
 Gets the network information the client is interfacing with.
 
@@ -125,7 +125,7 @@ the [NeoFS API](https://github.com/nspcc-dev/neofs-api).
 
 ### Create a container
 
-`PutContainer(clientID *C.char, v2Container *C.char) C.response`
+`response PutContainer(char* clientID, char* v2Container);`
 
 Creates a container.
 
@@ -142,7 +142,7 @@ The container ID.
 
 ### Get a container
 
-`GetContainer(clientID *C.char, containerID *C.char) C.pointerResponse`
+`pointerResponse GetContainer(char* clientID, char* containerID);`
 
 Gets the container header.
 
@@ -158,7 +158,7 @@ the [NeoFS API](https://github.com/nspcc-dev/neofs-api).
 
 ### Delete a container
 
-`DeleteContainer(clientID *C.char, containerID *C.char) C.pointerResponse`
+`pointerResponse DeleteContainer(char* clientID, char* containerID);`
 
 Deletes a container.
 
@@ -173,7 +173,7 @@ Deletes a container.
 
 ### List owned containers
 
-`ListContainer(clientID *C.char, ownerPubKey *C.char) C.pointerResponse`
+`pointerResponse ListContainer(char* clientID, char* ownerPubKey);`
 
 Returns a list of containers owned by the provided public key (`ownerPubKey`).
 
@@ -193,7 +193,7 @@ A byte array that consists of concatenated container IDs. One container ID is 33
 
 ### Create an object without attributes
 
-`CreateObjectWithoutAttributes(clientID *C.char, containerID *C.char, fileBytes unsafe.Pointer, fileSize C.int, sessionSignerPrivKey *C.char) C.response`
+`response CreateObjectWithoutAttributes(char* clientID, char* containerID, void* fileBytes, int fileSize, char* sessionSignerPrivKey);`
 
 Creates an object within the provided container. Does not add any attributes to the object.
 
@@ -211,7 +211,7 @@ The object ID.
 
 ### Create an object with 1 attribute
 
-`CreateObject(clientID *C.char, containerID *C.char, fileBytes unsafe.Pointer, fileSize C.int, sessionSignerPrivKey *C.char, attributeKey *C.char, attributeValue *C.char) C.response`
+`response CreateObject(char* clientID, char* containerID, void* fileBytes, int fileSize, char* sessionSignerPrivKey, char* attributeKey, char* attributeValue);`
 
 Creates an object within the provided container. Adds exactly one attribute to the object.
 
@@ -233,7 +233,7 @@ The object ID.
 
 ### Read an object
 
-`ReadObject(clientID *C.char, containerID *C.char, objectID *C.char, signer *C.char) C.pointerResponse`
+`pointerResponse ReadObject(char* clientID, char* containerID, char* objectID, char* signer);`
 
 Reads the object with objectID from the container with containerID.
 
@@ -250,7 +250,7 @@ The object bytes.
 
 ### Delete an object
 
-`DeleteObject(clientID *C.char, containerID *C.char, objectID *C.char, signer *C.char) C.response`
+`response DeleteObject(char* clientID, char* containerID, char* objectID, char* signer);`
 
 Deletes an object with objectID from the container with containerID.
 

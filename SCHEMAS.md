@@ -22,7 +22,7 @@ from `GetEndpoint()` and `ListContainers()` which are described below.
 }
 ```
 
-### ListContainers()
+### `ListContainers()`
 
 ```json
 {
