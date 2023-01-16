@@ -1,3 +1,8 @@
+# 0.0.9
+
+* Added method to delete a client.
+* Not yet productive.
+
 # 0.0.8
 
 * Added methods to create, read and delete objects.
