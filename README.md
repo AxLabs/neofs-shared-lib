@@ -1,15 +1,13 @@
-# NeoFS API Shared Lib
+# NeoFS Shared Library
 
-This repo provides a shared library with key functionalities from 
-[neofs-api-go](https://github.com/nspcc-dev/neofs-api-go) for multiple platforms and architectures.
+This repo provides a shared library with key functionalities for interacting with NeoFS. It is built
+with [cgo](https://go.dev/blog/cgo) and can be used on multiple platforms and architectures.
 
-The purpose is to avoid re-implementation of complex and risky functions of NeoFS in other languages, 
-such as Java, Kotlin, Python, Typescript, etc.
+The purpose is to avoid re-implementation of complex and risky functions of NeoFS in other
+languages, such as Java, Kotlin, Python, Typescript, etc.
 
-Below you can find key functions exported by this shared library:
-
-- [`SignServiceMessage(key *ecdsa.PrivateKey, msg interface{})`](https://github.com/nspcc-dev/neofs-api-go/blob/master/signature/sign.go#L147)
-- [`VerifyServiceMessage(msg interface{})`](https://github.com/nspcc-dev/neofs-api-go/blob/master/signature/sign.go#L227)
+In order to use this shared library, have a look at the specification of all
+provided [exported methods](./EXPORTED_METHODS.md).
 
 # Build
 
@@ -39,9 +37,11 @@ The output, i.e., `.h` and `.so` files, will be placed in the `./libs` folder.
 | darwin/amd64  |     ✅     |   👍   |  MacOS 13.0  |
 
 Meaning:
+
 * ✅: yes, it's supported, yay!
 * ⛔: no release targeting the specific platform yet
-* 👍: yes, manually tested, meaning that the `.so` file could successfully be loaded in the platform/arch
+* 👍: yes, manually tested, meaning that the `.so` file could successfully be loaded in the
+  platform/arch
 * 🫣: not tested yet...
 * 👎: manual tests failed, but more tests needs to be conducted.
 
