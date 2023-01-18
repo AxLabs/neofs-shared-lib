@@ -14,9 +14,8 @@ import (
 
 /*
 ----Netmap----
-NetworkInfo
-EndpointInfo
-NetMapSnapshot (only exists >v1.0.0-rc.6)
++NetworkInfo
++EndpointInfo
 */
 
 func GetEndpoint(neofsClient *client.NeoFSClient) *response.PointerResponse {

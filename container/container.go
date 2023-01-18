@@ -18,13 +18,13 @@ import (
 
 /*
 ----Container----
-Put
-Get
-Delete
-List
-SetExtendedACL
-GetExtendedACL
-AnnounceUsedSpace
++Put
++Get
++Delete
++List
+-SetExtendedACL
+-GetExtendedACL
+-AnnounceUsedSpace
 */
 
 func PutContainer(neofsClient *client.NeoFSClient, cnr *container.Container) *response.StringResponse {
@@ -79,26 +79,6 @@ func GetContainer(neofsClient *client.NeoFSClient, containerID *cid.ID) *respons
 func DeleteContainer(neofsClient *client.NeoFSClient, containerID *cid.ID) *response.PointerResponse {
 	return deleteContainer(neofsClient, containerID, nil)
 }
-
-////export DeleteContainerWithinSession
-//func DeleteContainerWithinSession(clientID *C.char, containerID *C.char, sessionToken *C.char) C.PointerResponse {
-//	id, err := getContainerIDFromC(containerID)
-//	if err != nil {
-//		return PointerResponseError(err.Error())
-//	}
-//
-//	tok, err := getSessionTokenFromC(sessionToken)
-//	if err != nil {
-//		return PointerResponseError(err.Error())
-//	}
-//
-//	neofsClient, err := GetClient(clientID)
-//	if err != nil {
-//		return PointerResponseClientError()
-//	}
-//	neofsClient.mu.Lock()
-//	return deleteContainer(neofsClient, id, tok)
-//}
 
 func deleteContainer(neofsClient *client.NeoFSClient, containerID *cid.ID, sessionToken *session.Container) *response.PointerResponse {
 	ctx := context.Background()
@@ -164,88 +144,5 @@ func buildContainerListResponse(resContainerList *neofsclient.ResContainerList) 
 type ListResponse struct {
 	Containers []string `json:"containers"`
 }
-
-////export SetExtendedACL
-//func SetExtendedACL(clientID *C.char, v2Table *C.char) C.PointerResponse {
-//	cli, err := GetClient(clientID)
-//	if err != nil {
-//		return PointerResponseClientError()
-//	}
-//	cli.mu.RLock()
-//	ctx := context.Background()
-//	table, err := getTableFromV2(v2Table)
-//	if err != nil {
-//		return PointerResponseError(err.Error())
-//	}
-//	var prmContainerSetEACL neofsclient.PrmContainerSetEACL
-//	prmContainerSetEACL.SetTable(*table)
-//
-//	resContainerSetEACL, err := cli.client.ContainerSetEACL(ctx, prmContainerSetEACL)
-//	cli.mu.RUnlock()
-//	if err != nil {
-//		return PointerResponseError(err.Error())
-//	}
-//	if !apistatus.IsSuccessful(resContainerSetEACL.Status()) {
-//		return ResultStatusErrorResponsePointer()
-//	}
-//	boolean := []byte{1}
-//	return PointerResponse(reflect.TypeOf(boolean), boolean)
-//}
-
-////export GetExtendedACL
-//func GetExtendedACL(clientID *C.char, v2ContainerID *C.char) C.PointerResponse {
-//	cli, err := GetClient(clientID)
-//	if err != nil {
-//		return PointerResponseClientError()
-//	}
-//	cli.mu.RLock()
-//	ctx := context.Background()
-//	containerID, err := getV2ContainerIDFromC(v2ContainerID)
-//	if err != nil {
-//		return PointerResponseError(err.Error())
-//	}
-//	var prmContainerEACL neofsclient.PrmContainerEACL
-//	prmContainerEACL.SetContainer(*containerID)
-//
-//	cnrResponse, err := cli.client.ContainerEACL(ctx, prmContainerEACL)
-//	cli.mu.RUnlock()
-//	if err != nil {
-//		return PointerResponseError(err.Error())
-//	}
-//	if !apistatus.IsSuccessful(cnrResponse.Status()) {
-//		return ResultStatusErrorResponsePointer()
-//	}
-//	table := cnrResponse.Table()
-//	tableBytes, err := cnrResponse.Table().Marshal()
-//	if err != nil {
-//		return PointerResponseError("could not marshal eacl table")
-//	}
-//	return PointerResponse(reflect.TypeOf(table), tableBytes)
-//}
-
-////export AnnounceUsedSpace
-//func AnnounceUsedSpace(clientID *C.char, announcements *C.char) C.PointerResponse {
-//	cli, err := GetClient(clientID)
-//	if err != nil {
-//		return PointerResponseClientError()
-//	}
-//	cli.mu.RLock()
-//	ctx := context.Background()
-//	ann := getAnnouncementsFromV2(announcements)
-//
-//	var prmContainerAnnounceSpace neofsclient.PrmAnnounceSpace
-//	prmContainerAnnounceSpace.SetValues(ann)
-//
-//	resContainerAnnounceUsedSpace, err := cli.client.ContainerAnnounceUsedSpace(ctx, prmContainerAnnounceSpace)
-//	cli.mu.RUnlock()
-//	if err != nil {
-//		return PointerResponseError(err.Error())
-//	}
-//	if !apistatus.IsSuccessful(resContainerAnnounceUsedSpace.Status()) {
-//		return ResultStatusErrorResponsePointer()
-//	}
-//	boolean := []byte{1}
-//	return PointerResponse(reflect.TypeOf(boolean), boolean)
-//}
 
 //endregion container

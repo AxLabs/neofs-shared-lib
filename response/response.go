@@ -94,13 +94,3 @@ func NewString(responseType reflect.Type, msg string) *StringResponse {
 		str:         msg,
 	}
 }
-
-//func PointerResponseBoolean(value bool) C.pointerResponse {
-//	var val []byte
-//	if value {
-//		val = []byte{1}
-//	} else {
-//		val = []byte{0}
-//	}
-//	return C.pointerResponse{C.CString(reflect.TypeOf(value).String()), C.int(1), (*C.char)(C.CBytes(val))}
-//}

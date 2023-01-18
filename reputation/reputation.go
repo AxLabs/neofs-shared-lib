@@ -1,11 +1,11 @@
 package reputation
 
-//
-///*
-//----Reputation----
-//AnnounceLocalTrust
-//AnnounceIntermediateResult
-//*/
+/*
+----Reputation----
+-AnnounceLocalTrust
+-AnnounceIntermediateResult
+*/
+
 //
 ////export AnnounceLocalTrust
 //func AnnounceLocalTrust(clientID *C.char, v2Trusts *C.char, epoch *C.int) C.Response {

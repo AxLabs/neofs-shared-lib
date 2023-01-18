@@ -44,11 +44,11 @@ func DeleteClient(clientID *C.char) C.pointerResponse {
 
 //export GetBalance
 func GetBalance(clientID *C.char, publicKey *C.char) C.pointerResponse {
-	c, err := GetClient(clientID)
+	key, err := UserIDFromPublicKey(publicKey)
 	if err != nil {
 		return responseToC(response.Error(err))
 	}
-	key, err := UserIDFromPublicKey(publicKey)
+	c, err := GetClient(clientID)
 	if err != nil {
 		return responseToC(response.Error(err))
 	}
@@ -142,34 +142,17 @@ func ListContainer(clientID *C.char, ownerPubKey *C.char) C.pointerResponse {
 // endregion container
 // region object
 
-////export UploadFile
-//func UploadFile(clientID *C.char, fileBytes *C.char) C.pointerResponse {
-//	c, err := GetClient(clientID)
-//	if err != nil {
-//		return responseToC(response.Error(err))
-//	}
-//	prm := UploadFilePrm{}
-//	err = json.Unmarshal(fileBytes, &prm)
-//	if err != nil {
-//		return responseToC(response.Error(err))
-//	}
-//	return responseToC(object.UploadFile(c, prm))
-//}
-//
-//type UploadFilePrm struct {
-//	prm1 string
-//	prm2 string
-//}
-
 //export CreateObjectWithoutAttributes
-func CreateObjectWithoutAttributes(clientID *C.char, containerID *C.char, fileBytes unsafe.Pointer, fileSize C.int,
-	sessionSignerPrivKey *C.char) C.response {
+func CreateObjectWithoutAttributes(clientID *C.char, containerID *C.char, fileBytes unsafe.Pointer,
+	fileSize C.int, sessionSignerPrivKey *C.char) C.response {
 	return CreateObject(clientID, containerID, fileBytes, fileSize, sessionSignerPrivKey, nil, nil)
 }
 
 //export CreateObject
-func CreateObject(clientID *C.char, containerID *C.char, fileBytes unsafe.Pointer, fileSize C.int, sessionSignerPrivKey *C.char,
-	attributeKey *C.char, attributeValue *C.char) C.response {
+func CreateObject(clientID *C.char, containerID *C.char, fileBytes unsafe.Pointer, fileSize C.int,
+	sessionSignerPrivKey *C.char, attributeKey *C.char, attributeValue *C.char) C.response {
+
+	// Todo: Add functionality to pass more attributes to C (dynamic number of attributes).
 
 	readBytes := C.GoBytes(fileBytes, fileSize)
 
@@ -193,9 +176,6 @@ func CreateObject(clientID *C.char, containerID *C.char, fileBytes unsafe.Pointe
 	return stringResponseToC(object.CreateObject(c, *cid, *privKey, attributes, reader))
 }
 
-//ReadObject(neofsClient *client.NeoFSClient, containerID cid.ID, objectID oid.ID,
-//signer ecdsa.PrivateKey) *response.PointerResponse {
-
 //export ReadObject
 func ReadObject(clientID *C.char, containerID *C.char, objectID *C.char, signer *C.char) C.pointerResponse {
 	cid, err := getContainerIDFromC(containerID)
@@ -213,6 +193,25 @@ func ReadObject(clientID *C.char, containerID *C.char, objectID *C.char, signer 
 		return responseToC(response.Error(err))
 	}
 	return responseToC(object.ReadObject(c, *cid, *oid, *privKey))
+}
+
+//export GetObjectHead
+func GetObjectHead(clientID *C.char, containerID *C.char, objectID *C.char, signer *C.char) C.pointerResponse {
+	cid, err := getContainerIDFromC(containerID)
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
+	oid, err := getObjectIDFromC(objectID)
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
+	privKey := GetECDSAPrivKey(signer)
+
+	c, err := GetClient(clientID)
+	if err != nil {
+		return responseToC(response.Error(err))
+	}
+	return responseToC(object.GetObjectHead(c, *cid, *oid, *privKey))
 }
 
 //export DeleteObject

@@ -13,7 +13,7 @@ import (
 
 /*
 ----Accounting----
-Balance
++BalanceGet
 */
 
 func GetBalance(neofsClient *client.NeoFSClient, id *user.ID) *response.PointerResponse {
@@ -21,6 +21,7 @@ func GetBalance(neofsClient *client.NeoFSClient, id *user.ID) *response.PointerR
 
 	var prmBalanceGet neofsclient.PrmBalanceGet
 	prmBalanceGet.SetAccount(*id)
+	//prmBalanceGet.WithXHeaders()
 
 	client := neofsClient.LockAndGet()
 	resBalanceGet, err := client.BalanceGet(ctx, prmBalanceGet)
