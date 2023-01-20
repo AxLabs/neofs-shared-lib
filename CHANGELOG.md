@@ -1,3 +1,8 @@
+# 0.0.10
+
+* Added method to get an object's header.
+* Not yet productive.
+
 # 0.0.9
 
 * Added method to delete a client.
