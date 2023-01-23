@@ -26,12 +26,12 @@ The output, i.e., `.h` and `.so` files, will be placed in the `./libs` folder.
 | Platform/Arch | Supported | Tested |  OS Tested   |
 |:--------------|:---------:|:------:|:------------:|
 | linux/amd64   |     ✅     |   👍   | Ubuntu 22.04 |
-| linux/arm64   |     ✅     |   👎   | Ubuntu 22.04 |
+| linux/arm64   |     ✅     |   👍   | Ubuntu 22.04 |
 | linux/armv5   |     ⛔     |  N/A   |     N/A      |
 | linux/armv6   |     ⛔     |  N/A   |     N/A      |
-| linux/armv7   |     ⛔     |  N/A   |     N/A      |
+| linux/armv7   |     ✅     |   🫣   |     N/A      |
 | windows/amd64 |     ✅     |   👍   |  Windows 11  |
-| windows/arm64 |     ✅     |   👎   |  Windows 11  |
+| windows/arm64 |     ⛔     |  N/A   |     N/A      |
 | windows/386   |     ✅     |   🫣   |     N/A      |
 | darwin/arm64  |     ✅     |   👍   |  MacOS 12.6  |
 | darwin/amd64  |     ✅     |   👍   |  MacOS 13.0  |
