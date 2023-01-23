@@ -1,3 +1,8 @@
+# 0.0.11
+
+* Added support for `linux/386` and `linux/armv7`.
+* Not yet productive
+
 # 0.0.10
 
 * Added method to get an object's header.
